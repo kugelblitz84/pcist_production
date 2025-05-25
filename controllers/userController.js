@@ -6,8 +6,8 @@ import generateOTP from '../utils/generateOTP.js';
 import sendEmail from '../utils/sendEmail.js';
 import slugify from 'slugify';
 
-const createToken = ({ id, classroll, email }) => {
-    return jwt.sign({ id, classroll, email }, process.env.JWT_SECRET);
+const createToken = ({ id, classroll, email, role }) => {
+    return jwt.sign({ id, classroll, email, role }, process.env.JWT_SECRET);
 };
 
 const verifyPassword = async (password, hashedPassword) => {
@@ -68,13 +68,19 @@ const registerMember = async (req, res) => {
             classroll,
             email,
             password: hashedPassword,
-            slug
+            slug,
+            role: 1,
         })
 
         await newUser.save()
 
-        // const token = createToken(user._id, user.classroll, user.email );
-        res.json({success: true, message: "User created successfully"});
+        const token = createToken({
+            id: user._id.toString(),
+            classroll: user.classroll,
+            email: user.email,
+            role: user.role
+        });
+        res.json({success: true, message: "User created successfully", token: token});
 	}
 	catch(error) {
 		console.log(error);
@@ -103,8 +109,11 @@ const login = async (req, res) => {
         }
 
         // Generate JWT token
-        const token = jwt.sign({id: user._id, role: user.role, email: user.email}, process.env.JWT_SECRET, {
-            expiresIn: '7d',
+        const token = createToken({
+            id: user._id.toString(),
+            classroll: user.classroll,
+            email: user.email,
+            role: user.role
         });
 
         // Send the token and user data in the response
@@ -113,10 +122,7 @@ const login = async (req, res) => {
             message: 'Login successful',
             token,
             user: {
-                slug: user.slug,
-                email: user.email,
-                classroll: user.classroll,
-                role: user.role,
+                slug: user.slug
             }
         })
 
@@ -127,14 +133,9 @@ const login = async (req, res) => {
 
 const sendVerificationEmail = async ( req, res ) => {
 	try{
-		const { email } = req.body;
+		const user = req.user;
 
-		if (!email) {
-	        return res.status(400).json({ code: 400, status: false, message: "Please provide email" });
-	    }
-
-	    const user = await userModel.findOne({ email });
-        if (!user) {
+		if (!user) {
             return res.status(404).json({ code: 404, status: false, message: "User not found" });
         }
 
@@ -147,7 +148,7 @@ const sendVerificationEmail = async ( req, res ) => {
         // Send the verification code to the user's email
         const subject = "Verification Code";
         const content = "Please verify your email.";
-        const emailTo = email;
+        const emailTo = user.email;
         await sendEmail({ emailTo, subject, code, content });
 
         res.status(200).json({ code: 200, status: true, message: "Verification code sent successfully" });
@@ -159,7 +160,8 @@ const sendVerificationEmail = async ( req, res ) => {
 }
 
 const verifyUser = async (req, res, next) => {
-    const { email, code } = req.body;
+    const { code } = req.body;
+    const email = req.user.email;
     
     if (!email || !code) {
         return res.status(400).json({ code: 400, status: false, message: "Please provide email and code" });
@@ -255,9 +257,9 @@ const recoverPassword = async (req, res) => {
 // update profile
 const updateProfile = async (req, res) => {
     try {
-        const { email, name, phone, gender, tshirt, batch, dept, cfhandle, atchandle, cchandle } = req.body;
+        const { name, phone, gender, tshirt, batch, dept, cfhandle, atchandle, cchandle } = req.body;
 
-        const user = await userModel.findOne({ email });
+        const user = req.user;
         if(!user){
             return res.status(404).json({ code: 404, status: false, message: "User not found" });
         }

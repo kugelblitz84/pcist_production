@@ -4,6 +4,7 @@ import 'dotenv/config'
  import connectDB from './configs/mongodb.js'
 import connectCloudinary from './configs/cloudinary.js'
 import userRouter from './routes/userRoute.js'
+import eventRoutes from './routes/eventRoutes.js'
 
 const app = express()
 const port = process.env.PORT || 4000;
@@ -18,6 +19,7 @@ app.use(cors())
 
 // auth route
 app.use('/api/v1/user', userRouter);
+app.use('/api/v1/event', eventRoutes);
 
 app.get('/', (req, res)=>{
 	res.send("API Working")

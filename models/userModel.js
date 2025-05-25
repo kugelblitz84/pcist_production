@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
 	name: { type: String },
 	gender: { type: String },
 	tshirt: { type: String },
-	batch: { type: String },
+	batch: { type: Number },
 	dept: { type: String },
 	role: { type: Number, required: true, default: 1 },
 	membership: { type: Boolean, default: false },

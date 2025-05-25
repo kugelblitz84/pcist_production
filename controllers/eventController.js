@@ -1,10 +1,11 @@
-import events from "../models/eventModel";
+import events from "../models/eventModel.js";
+
 const addEvent = async (req, res) => {
   try {
     const { eventName, eventType, date, location, description } = req.body;
     await events.create({
       eventName: eventName,
-      EventType: eventType,
+      eventType: eventType,
       date: date,
       location: location,
       description: description,
@@ -17,7 +18,7 @@ const addEvent = async (req, res) => {
 
 const getEvents = async (req, res) => {
   try {
-    const allEvents = events.find();
+    const allEvents = await events.find();
     res.status(200).json({
       message: "These are all the current ongoing events",
       data: allEvents,
