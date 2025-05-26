@@ -75,16 +75,16 @@ const registerMember = async (req, res) => {
         await newUser.save()
 
         const token = createToken({
-            id: user._id.toString(),
-            classroll: user.classroll,
-            email: user.email,
-            role: user.role
+            id: newUser._id.toString(),
+            classroll: newUser.classroll,
+            email: newUser.email,
+            role: newUser.role
         });
-        res.json({success: true, message: "User created successfully", token: token});
+        res.json({status: true, message: "User created successfully", token: token, slug: slug});
 	}
 	catch(error) {
 		console.log(error);
-        res.json({success:false, message:error.message});
+        res.json({status: false, message:error.message});
 	}
 }
 
@@ -119,11 +119,9 @@ const login = async (req, res) => {
         // Send the token and user data in the response
         res.status(200).json({
             status: true,
-            message: 'Login successful',
-            token,
-            user: {
-                slug: user.slug
-            }
+            message: 'Login successfull',
+            token: token,
+            slug: user.slug
         })
 
     } catch (error) {
