@@ -24,13 +24,13 @@ const superAdminLogin = async (req, res) => {
       password === process.env.ADMIN_PASSWORD
     ) {
       const token = jwt.sign(email + password, process.env.JWT_SECRET);
-      res.json({ success: true, token });
+      res.json({ status: true, token });
     } else {
-      res.json({ success: false, message: "Invalid credentials" });
+      res.json({ status: false, message: "Invalid credentials" });
     }
   } catch (error) {
     console.log(error);
-    res.json({ success: false, message: error.message });
+    res.json({ status: false, message: error.message });
   }
 };
 
@@ -42,7 +42,7 @@ const registerMember = async (req, res) => {
     const exits = await userModel.findOne({ classroll });
     if (exits) {
       return res.json({
-        success: false,
+        status: false,
         message:
           "Someone has already registerd using this roll. Please contact to pcist.",
       });
@@ -51,7 +51,7 @@ const registerMember = async (req, res) => {
     // Check if email is valid or not
     if (!validator.isEmail(email)) {
       return res.json({
-        success: false,
+        status: false,
         message: "Please enter a valid email",
       });
     }
@@ -59,7 +59,7 @@ const registerMember = async (req, res) => {
     // Check if email is a Gmail address
     if (!email.endsWith("@gmail.com")) {
       return res.json({
-        success: false,
+        status: false,
         message: "Only Gmail accounts are allowed",
       });
     }
@@ -67,7 +67,7 @@ const registerMember = async (req, res) => {
     // Password validation
     if (password.length < 8) {
       return res.json({
-        success: false,
+        status: false,
         message: "Please enter strong password and put atleast 8 characters",
       });
     }
@@ -201,7 +201,7 @@ const sendVerificationEmail = async (req, res) => {
       });
   } catch (error) {
     console.log(error);
-    res.json({ success: false, message: error.message });
+    res.json({ status: false, message: error.message });
   }
 };
 

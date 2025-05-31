@@ -6,7 +6,7 @@ const adminAuth = async (req, res, next) => {
         // Get token from Authorization header
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).json({ success: false, message: "Not Authorized. Login again." });
+            return res.status(401).json({ message: "Not Authorized. Login again." });
         }
 
         const token = authHeader.split(" ")[1];
@@ -14,13 +14,13 @@ const adminAuth = async (req, res, next) => {
         // Get slug from body
         const { slug } = req.body;
         if (!slug) {
-            return res.status(400).json({ success: false, message: "Missing slug." });
+            return res.status(400).json({ message: "Missing slug." });
         }
 
         // Find user by slug
         const user = await userModel.findOne({ slug });
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found." });
+            return res.status(404).json({ message: "User not found." });
         }
 
         // Decode token
@@ -28,7 +28,7 @@ const adminAuth = async (req, res, next) => {
 
         // Verify email and role
         if (decoded.email !== user.email || decoded.role !== 2) {
-            return res.status(403).json({ success: false, message: "Not authorized as admin." });
+            return res.status(403).json({ message: "Not authorized as admin." });
         }
 
         // Attach user to request for future use
@@ -36,7 +36,7 @@ const adminAuth = async (req, res, next) => {
 
         next();
     } catch (error) {
-        return res.status(401).json({ success: false, message: "Invalid or expired token." });
+        return res.status(401).json({ message: "Invalid or expired token." });
     }
 };
 
