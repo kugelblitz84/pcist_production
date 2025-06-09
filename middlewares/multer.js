@@ -5,7 +5,7 @@ import cloudinary from '../configs/cloudinary.js';
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'event_images', // folder in Cloudinary account
+    folder: 'event_images',
     allowed_formats: ['jpg', 'png', 'jpeg'],
   },
 });

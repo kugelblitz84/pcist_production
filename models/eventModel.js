@@ -26,6 +26,10 @@ const eventSchema = new mongoose.Schema(
         },
         imagePublicId: {
             type: String,
+        },
+        needMembership: {
+            type: Boolean,
+            required: true
         }
     },
     {

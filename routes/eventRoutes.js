@@ -6,7 +6,7 @@ const {addEvent, getEvents, GetOneEventUsingId, updateEvent, deleteEvent} = even
 
 const eventRoutes = express.Router()
 
-eventRoutes.post('/add_event', adminAuth, parser.single('image'), addEvent)
+eventRoutes.post('/add_event', parser.single('image'), adminAuth, addEvent)
 eventRoutes.get('/get_all_event', getEvents)
 eventRoutes.get('/get_one_event/:id', GetOneEventUsingId)
 eventRoutes.put('/update_event/:id', adminAuth, updateEvent)

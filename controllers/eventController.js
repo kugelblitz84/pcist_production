@@ -2,7 +2,7 @@ import events from "../models/eventModel.js";
 
 const addEvent = async (req, res) => {
   try {
-    const { eventName, eventType, date, location, description } = req.body;
+    const { eventName, eventType, date, location, description, needMembership } = req.body;
     await events.create({
       eventName: eventName,
       eventType: eventType,
@@ -11,6 +11,7 @@ const addEvent = async (req, res) => {
       description: description,
       image: req.file?.path,
       imagePublicId: req.file?.filename,
+      needMembership: needMembership,
     });
     res.status(200).json({ message: "New event created" });
   } catch (e) {
