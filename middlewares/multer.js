@@ -1,12 +1,11 @@
-import multer from 'multer';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import cloudinary from '../configs/cloudinary.js';
+import multer from "multer";
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'event_images',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+const storage = multer.diskStorage({
+  destination: function (req, file, callback) {
+    callback(null, "/event_images");
+  },
+  filename: function (req, file, callback) {
+    callback(null, file.originalname);
   },
 });
 
