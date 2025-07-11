@@ -2,7 +2,7 @@ import multer from "multer";
 
 const storage = multer.diskStorage({
   destination: function (req, file, callback) {
-    callback(null, "/event_images");
+    callback(null, "/");
   },
   filename: function (req, file, callback) {
     callback(null, file.originalname);
