@@ -1,4 +1,5 @@
 import events from "../models/eventModel.js";
+import eventGallery from "../models/eventModel.js"
 import cloudinary from '../configs/cloudinary.js';
 const addEvent = async (req, res) => {
   try {
@@ -153,16 +154,32 @@ const registerForEvent = async (req, res) => {
   }
 };
 
-export {
-  addEvent,
-  getEvents,
-  GetOneEventUsingId,
-  updateEvent,
-  deleteEvent,
-  registerForEvent,
-};
 
 
+const uploadImagesToGallery = async (req, res) =>{
+  try{
+    const images = req.files;
+    let imagesURL = await Promise.all(
+      images.map(async (item) => {
+        let result = await cloudinary.uploader.upload(item.path,{
+          resource_type: "image",
+          folder: "Gallery"
+        });
+        return {
+          url : result.secure_url,
+          publicId: result.public_id,
+        }
+      })
+    )
+    await eventGallery.create({
+      images: imagesURL,
+    })
+    res.status(200).json({message: "Image(s) Uploaded Successfully"})
+  }catch(err){
+    res.status(500).json({message: "error When trying to upload" + err})
+    console.log("errro when uploading to gallery: "+ err);
+  }
+}
 
 // const addProduct = async (req, res) => {
 //     try {
@@ -209,3 +226,12 @@ export {
 //         res.json({success:false, message: error.message})
 //     }
 // }
+export {
+  addEvent,
+  getEvents,
+  GetOneEventUsingId,
+  updateEvent,
+  deleteEvent,
+  registerForEvent,
+  uploadImagesToGallery,
+};

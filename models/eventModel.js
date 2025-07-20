@@ -58,6 +58,25 @@ const eventSchema = new mongoose.Schema(
   }
 );
 
-const events = mongoose.model("events", eventSchema);
+const gallerySchema = mongoose.Schema(
+  {
+    images: [
+      {
+        url: {
+          type: String,
+        },
+        publicId: {
+          type: String,
+        }
+      }
+    ]
 
-export default events;
+  }
+    
+  
+)
+
+const events = mongoose.model("events", eventSchema);
+const eventGallery = mongoose.model("gallery", gallerySchema);
+
+export default {events, eventGallery};
