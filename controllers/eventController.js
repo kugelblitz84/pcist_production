@@ -181,6 +181,8 @@ const uploadImagesToGallery = async (req, res) =>{
   }
 }
 
+
+
 // const addProduct = async (req, res) => {
 //     try {
 
