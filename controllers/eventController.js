@@ -1,4 +1,4 @@
-import {events, eventGallery} from "../models/eventModel.js";
+import {soloEvents, teamEvents, eventGallery} from "../models/eventModel.js";
 //import eventGallery from "../models/eventModel.js"
 import cloudinary from '../configs/cloudinary.js';
 const addEvent = async (req, res) => {
@@ -127,12 +127,12 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-const registerForEvent = async (req, res) => {
+const registerForSoloEvent = async (req, res) => {
   try {
     const userId = req.user.id; // Authenticated user's ID
     const eventId = req.params.id; // Event ID from URL
 
-    const event = await events.findById(eventId);
+    const event = await soloEvents.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
@@ -151,6 +151,60 @@ const registerForEvent = async (req, res) => {
     res.status(200).json({ message: "User registered for event successfully" });
   } catch (e) {
     res.status(500).json({ message: e.message });
+  }
+};
+
+const registerForTeamEvent = async (req, res) => {
+  const session = await mongoose.startSession(); //session started
+  session.startTransaction(); //creates a safeblock for avoiding race-around
+
+  try {
+    const eventId = req.params.id;
+    const { teamName, members } = req.body;
+
+    // Validate input
+    if (!teamName || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ message: "Invalid team data" });
+    }
+
+    // Extract userIds as ObjectIds
+    const newMemberIds = members.map((m) => mongoose.Types.ObjectId(m.userId));
+
+    // Check if any member is already registered
+    const existing = await teamEvents.findOne({
+      _id: eventId,
+      "registeredTeams.members.userId": { $in: newMemberIds },
+    }).session(session);
+
+    if (existing) {
+      await session.abortTransaction(); //existing memberfound abort transaction
+      session.endSession();
+      return res
+        .status(400)
+        .json({ message: "One or more team members are already registered" });
+    }
+
+    // Add the new team
+    await teamEvents.updateOne(
+      { _id: eventId },
+      {
+        $push: {
+          registeredTeams: {
+            teamName,
+            members,
+          },
+        },
+      }
+    ).session(session);
+
+    await session.commitTransaction(); //commit the changes after the update
+    session.endSession();
+
+    res.status(200).json({ message: "Team registered successfully" });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -234,6 +288,8 @@ export {
   GetOneEventUsingId,
   updateEvent,
   deleteEvent,
-  registerForEvent,
+  registerForSoloEvent,
+  registerForTeamEvent,
   uploadImagesToGallery,
 };
+//done
