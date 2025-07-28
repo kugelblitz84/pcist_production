@@ -9,6 +9,8 @@ import {
   updateProfile,
   login,
   getUserData,
+  getUserList,
+  updateMembershipStatus,
 } from "../controllers/userController.js";
 //import { registerForEvent } from "../controllers/eventController.js";
 import auth from "../middlewares/auth.js";
@@ -25,6 +27,8 @@ userRouter.post("/send-forgot-password-email", sendForgotPasswordCode);
 userRouter.post("/recover-password", recoverPassword);
 userRouter.put("/update-profile", auth, updateProfile);
 userRouter.post("/get-user-data", getUserData);
+userRouter.post("/get-user-list", adminAuth, getUserList);
+userRouter.post("/update-membership-status/:id", adminAuth, updateMembershipStatus);
 //userRouter.post("/get-user-data-admin", adminAuth, getUserData);
 //userRouter.post("/register-for-event/:id", auth, registerForEvent);
 
