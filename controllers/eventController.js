@@ -15,6 +15,7 @@ const addEvent = async (req, res) => {
     } = req.body;
 
     const images = req.files;
+    console.log(images);
     let imagesUrl = await Promise.all(
       images.map(async (item) => {
         let result = await cloudinary.uploader.upload(item.path, {
@@ -237,12 +238,14 @@ const registerForTeamEvent = async (req, res) => {
 const uploadImagesToGallery = async (req, res) => {
   try {
     const images = req.files;
+    console.log(images);
     let imagesURL = await Promise.all(
       images.map(async (item) => {
         let result = await cloudinary.uploader.upload(item.path, {
           resource_type: "image",
           folder: "Gallery",
         });
+        
         return {
           url: result.secure_url,
           publicId: result.public_id,
