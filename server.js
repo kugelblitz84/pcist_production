@@ -9,6 +9,8 @@ import NotificationRouter from "./routes/notificationsRoutes.js";
 import http from "http";
 import { Server } from "socket.io";
 
+// comment
+
 const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 4000;
