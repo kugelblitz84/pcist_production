@@ -15,6 +15,7 @@ const addEvent = async (req, res) => {
     } = req.body;
 
     const images = req.files;
+    console.log(images);
     let imagesUrl = await Promise.all(
       images.map(async (item) => {
         let result = await cloudinary.uploader.upload(item.path, {
@@ -234,15 +235,48 @@ const registerForTeamEvent = async (req, res) => {
   }
 };
 
+const getRegisteredTeamList = async (req, res) => {
+  try{
+    const {eventId} = req.params.id
+    const event = await teamEvents.findById(eventId)
+    if(!event){
+      return res.status(404).json({message: "Event not found"})
+    }
+    return res.status(200).json({
+      teams : event.registeredTeams
+    })
+    
+  }catch(err){
+    return res.status(500).json({messge: "Internal server error"})
+  }
+}
+
+const getRegisteredMembersList = async (req, res) => {
+  try{
+    const {eventId} = req.params.id
+    const event = await soloEvents.findById(eventId)
+    if(!event){
+      return res.status(404).json({message: "Event not found"})
+    }
+    return res.status(200).json({
+      registeredMembers : event.registeredMembers
+    })
+  }catch(err){
+    res.status(500).json({message: "Internal server error"})
+  }
+}
+
 const uploadImagesToGallery = async (req, res) => {
   try {
     const images = req.files;
+    console.log(images);
     let imagesURL = await Promise.all(
       images.map(async (item) => {
         let result = await cloudinary.uploader.upload(item.path, {
           resource_type: "image",
           folder: "Gallery",
         });
+        
         return {
           url: result.secure_url,
           publicId: result.public_id,
@@ -264,5 +298,7 @@ export {
   deleteEvent,
   registerForSoloEvent,
   registerForTeamEvent,
+  getRegisteredTeamList,
+  getRegisteredMembersList,
   uploadImagesToGallery,
 };
