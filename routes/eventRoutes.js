@@ -1,5 +1,5 @@
 import express from "express";
-import uploadEventImages, { compressImages } from "../middlewares/multer.js";
+import {uploadEventImages, compressImages } from "../middlewares/multer.js";
 import {
   addEvent,
   getEvents,

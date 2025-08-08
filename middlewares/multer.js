@@ -22,7 +22,7 @@ try {
 const storage = multer.memoryStorage();
 
 // Image compression middleware
-export const compressImages = async (req, res, next) => {
+const compressImages = async (req, res, next) => {
   // Skip compression entirely for now (can be enabled later)
   // console.log("Image compression is currently disabled");
   // return next();
@@ -100,4 +100,4 @@ const uploadEventImages = multer({
   },
 }).array("images", 30);
 
-export default uploadEventImages;
+export default {uploadEventImages, compressImages};
