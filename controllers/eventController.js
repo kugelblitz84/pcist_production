@@ -1,6 +1,6 @@
 import { soloEvents, teamEvents, eventGallery } from "../models/eventModel.js";
 import cloudinary from "../configs/cloudinary.js";
-import userModel from '../models/userModel.js'
+import userModel from "../models/userModel.js";
 
 const addEvent = async (req, res) => {
   try {
@@ -18,14 +18,29 @@ const addEvent = async (req, res) => {
     console.log(images);
     let imagesUrl = await Promise.all(
       images.map(async (item) => {
-        let result = await cloudinary.uploader.upload(item.path, {
-          resource_type: "image",
-          folder: "Event banners",
+        // Upload buffer directly to cloudinary
+        // Use a promise to handle the stream upload
+        return new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "image",
+              folder: "Event banners",
+            },
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve({
+                  url: result.secure_url,
+                  publicId: result.public_id,
+                });
+              }
+            }
+          );
+
+          // Send the buffer to the upload stream
+          uploadStream.end(item.buffer);
         });
-        return {
-          url: result.secure_url,
-          publicId: result.public_id,
-        };
       })
     );
 
@@ -91,18 +106,28 @@ const GetOneEventUsingId = async (req, res) => {
 const updateEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
-    const { eventName, date, description, location, registrationDeadline } = req.body;
+    const { eventName, date, description, location, registrationDeadline } =
+      req.body;
 
     const updateFields = {};
     if (eventName) updateFields.eventName = eventName;
     if (date) updateFields.date = date;
     if (description) updateFields.description = description;
     if (location) updateFields.location = location;
-    if (registrationDeadline) updateFields.registrationDeadline = registrationDeadline;
+    if (registrationDeadline)
+      updateFields.registrationDeadline = registrationDeadline;
 
-    let updatedEvent = await soloEvents.findByIdAndUpdate(eventId, { $set: updateFields }, { new: true });
+    let updatedEvent = await soloEvents.findByIdAndUpdate(
+      eventId,
+      { $set: updateFields },
+      { new: true }
+    );
     if (!updatedEvent) {
-      updatedEvent = await teamEvents.findByIdAndUpdate(eventId, { $set: updateFields }, { new: true });
+      updatedEvent = await teamEvents.findByIdAndUpdate(
+        eventId,
+        { $set: updateFields },
+        { new: true }
+      );
     }
 
     if (!updatedEvent) {
@@ -149,6 +174,28 @@ const registerForSoloEvent = async (req, res) => {
     const event = await soloEvents.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
+    // Check if event requires membership
+    if (event.needMembership) {
+      const user = await userModel.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // Check if user has valid membership
+      if (!user.membership) {
+        return res.status(403).json({
+          message:
+            "This event requires membership. Please purchase a membership to register.",
+        });
+      }
+
+      // Check if membership has expired
+      if (user.membershipExpiresAt && new Date() > user.membershipExpiresAt) {
+        return res.status(403).json({
+          message:
+            "Your membership has expired. Please renew your membership to register.",
+        });
+      }
+    }
+
     if (event.registeredMembers.some((m) => m.userId.toString() === userId)) {
       return res.status(400).json({ message: "Already registered" });
     }
@@ -169,7 +216,9 @@ const registerForTeamEvent = async (req, res) => {
 
     // Validate input
     if (!teamName || !Array.isArray(members) || members.length === 0) {
-      return res.status(400).json({ message: "Team name and members are required." });
+      return res
+        .status(400)
+        .json({ message: "Team name and members are required." });
     }
 
     // Check registration deadline
@@ -179,17 +228,21 @@ const registerForTeamEvent = async (req, res) => {
 
     const now = new Date();
     if (now > event.registrationDeadline) {
-      return res.status(400).json({ message: "Registration deadline has passed." });
+      return res
+        .status(400)
+        .json({ message: "Registration deadline has passed." });
     }
 
     // Check if team name is already registered
     const duplicateTeam = await teamEvents.findOne({
       _id: eventId,
-      "registeredTeams.teamName": teamName
+      "registeredTeams.teamName": teamName,
     });
 
     if (duplicateTeam) {
-      return res.status(400).json({ message: "Team name already registered for this event." });
+      return res
+        .status(400)
+        .json({ message: "Team name already registered for this event." });
     }
 
     // Process members
@@ -198,37 +251,57 @@ const registerForTeamEvent = async (req, res) => {
     for (const email of members) {
       const user = await userModel.findOne({ email: email });
       if (!user) {
-        return res.status(404).json({ message: `User with email ${email} not found.` });
+        return res
+          .status(404)
+          .json({ message: `User with email ${email} not found.` });
+      }
+
+      // Check membership requirement for this event
+      if (event.needMembership) {
+        // Check if user has valid membership
+        if (!user.membership) {
+          return res.status(403).json({
+            message: `This event requires membership. User ${email} does not have membership. All team members must have valid membership to register.`,
+          });
+        }
+
+        // Check if membership has expired
+        if (user.membershipExpiresAt && new Date() > user.membershipExpiresAt) {
+          return res.status(403).json({
+            message: `This event requires membership. User ${email} has expired membership. All team members must have valid membership to register.`,
+          });
+        }
       }
 
       // Check if this user is already part of any team in the event
       const alreadyInTeam = await teamEvents.findOne({
         _id: eventId,
-        "registeredTeams.members.userId": user._id
+        "registeredTeams.members.userId": user._id,
       });
 
       if (alreadyInTeam) {
-        return res.status(400).json({ message: `User ${member.email} is already registered in a team.` });
+        return res
+          .status(400)
+          .json({ message: `User ${email} is already registered in a team.` });
       }
 
       processedMembers.push({
         userId: user._id,
         Name: user.name || "", // fallback to empty if name not found
-        paymentStatus: member.paymentStatus || false,
+        paymentStatus: false,
       });
     }
 
     // Add new team
     const newTeam = {
       teamName,
-      members: processedMembers
+      members: processedMembers,
     };
 
     event.registeredTeams.push(newTeam);
     await event.save();
 
     return res.status(200).json({ message: "Team registered successfully." });
-
   } catch (error) {
     console.error("Register team error:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -236,35 +309,34 @@ const registerForTeamEvent = async (req, res) => {
 };
 
 const getRegisteredTeamList = async (req, res) => {
-  try{
-    const {eventId} = req.params.id
-    const event = await teamEvents.findById(eventId)
-    if(!event){
-      return res.status(404).json({message: "Event not found"})
+  try {
+    const { eventId } = req.params.id;
+    const event = await teamEvents.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
     }
     return res.status(200).json({
-      teams : event.registeredTeams
-    })
-    
-  }catch(err){
-    return res.status(500).json({messge: "Internal server error"})
+      teams: event.registeredTeams,
+    });
+  } catch (err) {
+    return res.status(500).json({ messge: "Internal server error" });
   }
-}
+};
 
 const getRegisteredMembersList = async (req, res) => {
-  try{
-    const {eventId} = req.params.id
-    const event = await soloEvents.findById(eventId)
-    if(!event){
-      return res.status(404).json({message: "Event not found"})
+  try {
+    const { eventId } = req.params.id;
+    const event = await soloEvents.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
     }
     return res.status(200).json({
-      registeredMembers : event.registeredMembers
-    })
-  }catch(err){
-    res.status(500).json({message: "Internal server error"})
+      registeredMembers: event.registeredMembers,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 const uploadImagesToGallery = async (req, res) => {
   try {
@@ -272,15 +344,28 @@ const uploadImagesToGallery = async (req, res) => {
     console.log(images);
     let imagesURL = await Promise.all(
       images.map(async (item) => {
-        let result = await cloudinary.uploader.upload(item.path, {
-          resource_type: "image",
-          folder: "Gallery",
+        // Use a promise to handle the stream upload
+        return new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "image",
+              folder: "Gallery",
+            },
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve({
+                  url: result.secure_url,
+                  publicId: result.public_id,
+                });
+              }
+            }
+          );
+
+          // Send the buffer to the upload stream
+          uploadStream.end(item.buffer);
         });
-        
-        return {
-          url: result.secure_url,
-          publicId: result.public_id,
-        };
       })
     );
     await eventGallery.create({ images: imagesURL });
