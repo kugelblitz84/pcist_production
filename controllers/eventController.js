@@ -192,7 +192,7 @@ const registerForSoloEvent = async (req, res) => {
     const { Name } = req.body;
 
     const event = await soloEvents.findById(eventId);
-    if (!event) return res.status(404).json({ message: "Event not found" });
+    if (event == null) return res.status(404).json({ message: "Event not found" });
 
     // Check if event requires membership
     if (event.needMembership) {
@@ -395,6 +395,32 @@ const uploadImagesToGallery = async (req, res) => {
   }
 };
 
+// Fetch all uploaded images from the gallery
+const fetchGalleryImages = async (req, res) => {
+  try {
+    // Find all documents in the gallery
+    const gallery = await eventGallery.find();
+
+    if (!gallery || gallery.length === 0) {
+      return res.status(404).json({ message: "No images found in gallery" });
+    }
+
+    // Extract all images
+    let allImages = [];
+    gallery.forEach((item) => {
+      allImages = allImages.concat(item.images);
+    });
+
+    res.status(200).json({
+      message: "Images fetched successfully",
+      images: allImages,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching images: " + err });
+  }
+};
+
+
 export {
   addEvent,
   getEvents,
@@ -406,4 +432,5 @@ export {
   getRegisteredTeamList,
   getRegisteredMembersList,
   uploadImagesToGallery,
+  fetchGalleryImages
 };

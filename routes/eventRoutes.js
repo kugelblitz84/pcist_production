@@ -11,6 +11,7 @@ import {
   getRegisteredTeamList,
   getRegisteredMembersList,
   uploadImagesToGallery,
+  fetchGalleryImages
 } from "../controllers/eventController.js";
 import adminAuth from "../middlewares/adminAuth.js";
 import auth from "../middlewares/auth.js";
@@ -34,6 +35,7 @@ eventRoutes.post(
   compressImages,
   uploadImagesToGallery
 );
+eventRoutes.get("/fetch_gallery_images", fetchGalleryImages);
 eventRoutes.post("/register_for_solo_event/:id", auth, registerForSoloEvent); //event id in params
 eventRoutes.post("/register_for_team_event/:id", auth, registerForTeamEvent);
 eventRoutes.get("/get_registered_teams", getRegisteredTeamList);
