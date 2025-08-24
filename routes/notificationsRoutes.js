@@ -6,7 +6,7 @@ const NotificationRouter = express.Router()
 
 NotificationRouter.post('/notify_all_users', adminAuth, notifyAllUsers);
 NotificationRouter.post('/notify_one/:token', adminAuth,  notifyOneUser);
-NotificationRouter.post('/send_pad_statement', sendPadStatementEmail);
-NotificationRouter.post('/send_invoice', sendInvoiceEmail);
+NotificationRouter.post('/send_pad_statement', adminAuth, sendPadStatementEmail);
+NotificationRouter.post('/send_invoice', adminAuth, sendInvoiceEmail);
 
 export default NotificationRouter;
