@@ -222,7 +222,7 @@ const registerForSoloEvent = async (req, res) => {
 
 const registerForTeamEvent = async (req, res) => {
   try {
-    const { eventId } = req.params;
+  const eventId = req.params.id;
     const { teamName, members } = req.body; // members = ["email1", "email2", "email3"]
 
     // Validate input
@@ -322,8 +322,8 @@ const registerForTeamEvent = async (req, res) => {
 
 const getRegisteredTeamList = async (req, res) => {
   try {
-    const { eventId } = req.params.id;
-    const event = await teamEvents.findById(eventId);
+  const eventId = req.params.id;
+  const event = await teamEvents.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
@@ -337,8 +337,8 @@ const getRegisteredTeamList = async (req, res) => {
 
 const getRegisteredMembersList = async (req, res) => {
   try {
-    const { eventId } = req.params.id;
-    const event = await soloEvents.findById(eventId);
+  const eventId = req.params.id;
+  const event = await soloEvents.findById(eventId);
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
