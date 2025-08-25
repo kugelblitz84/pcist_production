@@ -31,8 +31,8 @@ userRouter.post("/get-user-data", getUserData);
 userRouter.post("/get-user-list", adminAuth, getUserList);
 userRouter.post("/update-membership-status/:id", adminAuth, updateMembershipStatus);
 // Pad statement endpoints
-userRouter.post("/pad/send", adminAuth, sendPadStatementEmail);
-userRouter.get("/pad/history", adminAuth, listPadStatementHistory);
+userRouter.post("/pad/send", sendPadStatementEmail);
+userRouter.get("/pad/history", listPadStatementHistory);
 //userRouter.post("/get-user-data-admin", adminAuth, getUserData);
 //userRouter.post("/register-for-event/:id", auth, registerForEvent);
 

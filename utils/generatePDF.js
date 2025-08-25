@@ -52,6 +52,7 @@ const generatePadPDF = async ({
 				.brand { text-align: center; flex: 1; }
 				.brand h1 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
 				.brand p { margin: 2px 0 0 0; font-size: 12px; color: #555; }
+				.brand .contact-line { margin: 2px 0 0 0; font-size: 11px; color: #555; }
 				.rule { margin: 12px 0 14px; height: 2px; background: linear-gradient(90deg, #0b5ed7, #9ec5fe); border: none; }
 				.meta { display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-bottom: 12px; }
 				.content { font-size: 14px; line-height: 1.6; text-align: justify; }
@@ -60,7 +61,6 @@ const generatePadPDF = async ({
 				.signature { width: 260px; margin-left: auto; text-align: left; }
 				.sig-line { border-top: 1px solid #0b5ed7; margin: 24px 0 6px; width: 220px; }
 				.sig-name { font-weight: 600; }
-				.contact { font-size: 11px; color: #555; margin-top: 6px; }
 				.page-break { page-break-after: always; }
 			</style>
 		</head>
@@ -70,6 +70,11 @@ const generatePadPDF = async ({
 				<div class="brand">
 					<h1>Programming Club of IST (pcIST)</h1>
 					<p>${address}</p>
+					<p class="contact-line">
+						${contactEmail ? `Email: ${contactEmail}` : ''}
+						${contactEmail && contactPhone ? ' | ' : ''}
+						${contactPhone ? `Phone: ${contactPhone}` : ''}
+					</p>
 				</div>
 				<img class="logo" src="${pcistLogo}" alt="pcIST Logo" />
 			</div>
@@ -89,11 +94,6 @@ const generatePadPDF = async ({
 					<div class="sig-name">${authorizedBy || ''}</div>
 					<div>${authorizerName || 'General Secretary'}</div>
 					<div>pcIST</div>
-					<div class="contact">
-						${contactEmail ? `Email: ${contactEmail}` : ''}
-						${contactEmail && contactPhone ? ' | ' : ''}
-						${contactPhone ? `Phone: ${contactPhone}` : ''}
-					</div>
 				</div>
 			</div>
 		</body>
