@@ -77,14 +77,19 @@ const sendPadStatementEmail = async (req, res) => {
       receiverEmail, 
       subject = "pcIST Statement", 
       statement, 
-      authorizers,
-      contactEmail, 
-      contactPhone, 
-      address 
+      authorizers = [],
+      contactEmail = '', 
+      contactPhone = '', 
+      address = 'Institute of Science & Technology (IST), Dhaka'
     } = req.body;
     
     if (!receiverEmail || !statement) {
       return res.status(400).json({ success: false, message: "receiverEmail and statement are required" });
+    }
+
+    // Ensure authorizers is an array (can be empty)
+    if (!Array.isArray(authorizers)) {
+      return res.status(400).json({ success: false, message: "authorizers must be an array" });
     }
 
     // Prepare parameters for PDF generation
@@ -104,21 +109,15 @@ const sendPadStatementEmail = async (req, res) => {
       receiverEmail,
       subject,
       statement,
-      // Save both formats for backward compatibility
-      authorizers: Array.isArray(authorizers) ? authorizers : undefined,
-      authorizedBy,
-      authorizerName,
-      authorizedBy2,
-      authorizerName2,
-      authorizedBy3,
-      authorizerName3,
+      authorizers,
       contactEmail,
       contactPhone,
       address,
       serial,
       dateStr,
       createdBy: req.user?._id,
-      sent: false,
+      sent: true,
+      sentAt: new Date(),
     });
 
     const html = `<p>Dear recipient,</p>
@@ -168,14 +167,19 @@ const downloadPadStatementPDF = async (req, res) => {
   try {
     const { 
       statement, 
-      authorizers,
-      contactEmail, 
-      contactPhone, 
-      address 
+      authorizers = [],
+      contactEmail = '', 
+      contactPhone = '', 
+      address = 'Institute of Science & Technology (IST), Dhaka'
     } = req.body;
     
     if (!statement) {
       return res.status(400).json({ success: false, message: "statement is required" });
+    }
+
+    // Ensure authorizers is an array (can be empty)
+    if (!Array.isArray(authorizers)) {
+      return res.status(400).json({ success: false, message: "authorizers must be an array" });
     }
 
     // Prepare parameters for PDF generation
@@ -195,14 +199,7 @@ const downloadPadStatementPDF = async (req, res) => {
       receiverEmail: null, // No email recipient for download
       subject: "PDF Download",
       statement,
-      // Save both formats for backward compatibility
-      authorizers: Array.isArray(authorizers) ? authorizers : undefined,
-      authorizedBy,
-      authorizerName,
-      authorizedBy2,
-      authorizerName2,
-      authorizedBy3,
-      authorizerName3,
+      authorizers,
       contactEmail,
       contactPhone,
       address,

@@ -5,7 +5,7 @@ const padStatementSchema = new mongoose.Schema(
     receiverEmail: { type: String, required: false },
     subject: { type: String, default: 'pcIST Statement' },
     statement: { type: String, required: true },
-    // Array-based authorizers
+    // Array-based authorizers (can be empty)
     authorizers: [{
       name: { type: String, required: true },
       role: { type: String, required: true }
