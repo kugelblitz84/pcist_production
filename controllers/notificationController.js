@@ -72,7 +72,7 @@ const notifyAllUsers = async (req, res) => {
 
 const sendPadStatementEmail = async (req, res) => {
   try {
-    const { receiverEmail, subject = "pcIST Statement", statement, authorizedBy, authorizerName, contactEmail, contactPhone, address } = req.body;
+    const { receiverEmail, subject = "pcIST Statement", statement, authorizedBy, authorizerName, authorizedBy2, authorizerName2, authorizedBy3, authorizerName3, contactEmail, contactPhone, address } = req.body;
     if (!receiverEmail || !statement) {
       return res.status(400).json({ success: false, message: "receiverEmail and statement are required" });
     }
@@ -82,6 +82,10 @@ const sendPadStatementEmail = async (req, res) => {
       statement,
       authorizedBy,
       authorizerName,
+      authorizedBy2,
+      authorizerName2,
+      authorizedBy3,
+      authorizerName3,
       contactEmail,
       contactPhone,
       address,
@@ -94,6 +98,10 @@ const sendPadStatementEmail = async (req, res) => {
       statement,
       authorizedBy,
       authorizerName,
+      authorizedBy2,
+      authorizerName2,
+      authorizedBy3,
+      authorizerName3,
       contactEmail,
       contactPhone,
       address,

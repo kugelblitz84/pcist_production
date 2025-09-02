@@ -7,23 +7,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const assetPath = (relativePath) => path.resolve(__dirname, '..', relativePath);
 
-// Generate PDF using Puppeteer by rendering an HTML template.
-// Returns { buffer, serial, dateStr }
-const generatePadPDFWithPuppeteer = async ({
-  statement = '',
-  // legacy single authorizer fields
-  authorizedBy = '',
-  authorizerName = '',
-  // optional second authorizer legacy fields
-  authorizedBy2 = '',
-  authorizerName2 = '',
-  // new preferred array form: [{ name, role }]
-  authorizers: authorizersParam = undefined,
-  contactEmail = '',
-  contactPhone = '',
-  address = 'Institute of Science & Technology (IST), Dhaka',
-} = {}) => {
-  // Normalize logos to PNG and embed as data URIs
+const generatePadPDFWithPuppeteer = async (opts = {}) => {
+  const {
+    statement = '',
+    authorizedBy = '',
+    authorizerName = '',
+    authorizedBy2 = '',
+    authorizerName2 = '',
+    // optional third legacy fields
+    authorizedBy3 = '',
+    authorizerName3 = '',
+    // new preferred array form: [{ name, role }]
+    authorizers: authorizersParam = undefined,
+    contactEmail = '',
+    contactPhone = '',
+    address = 'Institute of Science & Technology (IST), Dhaka',
+  } = opts;
   const istLogoPath = assetPath('assets/logos/IST_logo.png');
   const pcistLogoPath = assetPath('assets/logos/pcIST_logo.png');
   const [istBuf, pcistBuf] = await Promise.all([
@@ -34,10 +33,15 @@ const generatePadPDFWithPuppeteer = async ({
   const pcistData = `data:image/png;base64,${pcistBuf.toString('base64')}`;
 
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const serial = `pcIST-${today.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const dateStr = today.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  const serial = `pcIST-${today.getFullYear()}-${Math.floor(
+    1000 + Math.random() * 9000
+  )}`;
 
-  // Build simple, print-ready HTML that mirrors the PDFKit design
   const paragraphs = String(statement)
     .split(/\n\n+/)
     .map((p) => p.trim())
@@ -45,14 +49,18 @@ const generatePadPDFWithPuppeteer = async ({
     .map((p) => `<p class="para">${p.replace(/\n/g, '<br/>')}</p>`)
     .join('\n');
 
-  const contactLine = [contactEmail ? `Email: ${contactEmail}` : null, contactPhone ? `Phone: ${contactPhone}` : null]
+  const contactLine = [
+    contactEmail ? `Email: ${contactEmail}` : null,
+    contactPhone ? `Phone: ${contactPhone}` : null,
+  ]
     .filter(Boolean)
     .join(' | ');
 
-  // Build authorizers array (support legacy single/two fields and new array shape)
   let authorizers = [];
   if (Array.isArray(authorizersParam) && authorizersParam.length > 0) {
-    authorizers = authorizersParam.slice(0, 2).map((a) => ({ name: a.name || '', role: a.role || a.title || '' }));
+    authorizers = authorizersParam
+      .slice(0, 3)
+      .map((a) => ({ name: a.name || '', role: a.role || a.title || '' }));
   } else {
     if (authorizedBy || authorizerName) {
       authorizers.push({ name: authorizedBy || '', role: authorizerName || '' });
@@ -60,104 +68,333 @@ const generatePadPDFWithPuppeteer = async ({
     if (authorizedBy2 || authorizerName2) {
       authorizers.push({ name: authorizedBy2 || '', role: authorizerName2 || '' });
     }
+    if (authorizedBy3 || authorizerName3) {
+      authorizers.push({ name: authorizedBy3 || '', role: authorizerName3 || '' });
+    }
   }
-  // Ensure at most 2
-  authorizers = authorizers.slice(0, 2);
+  authorizers = authorizers.slice(0, 3);
 
-  // Signature HTML for up to two authorizers
   const signatureHtml = (() => {
     if (authorizers.length === 0) return '';
     if (authorizers.length === 1) {
       const a = authorizers[0];
-      return `<div class="signatures"><div class="sig single"><div class="sig-line"></div><div class="sig-name">${a.name || ''}</div><div class="sig-role">${a.role || ''}</div><div>pcIST</div></div></div>`;
+      return `<div class="signatures single"><div class="sig center"><div class="sig-line"></div><div class="sig-name">${a.name || ''}</div><div class="sig-role">${a.role || ''}</div><div>pcIST</div></div></div>`;
     }
-    // two
-    const left = authorizers[0];
-    const right = authorizers[1];
-    return `<div class="signatures"><div class="sig left"><div class="sig-line"></div><div class="sig-name">${left.name || ''}</div><div class="sig-role">${left.role || ''}</div><div>pcIST</div></div><div class="sig right"><div class="sig-line"></div><div class="sig-name">${right.name || ''}</div><div class="sig-role">${right.role || ''}</div><div>pcIST</div></div></div>`;
+    if (authorizers.length === 2) {
+      const left = authorizers[0];
+      const right = authorizers[1];
+      return `<div class="signatures two">
+        <div class="sig left">
+          <div class="sig-line"></div>
+          <div class="sig-name">${left.name || ''}</div>
+          <div class="sig-role">${left.role || ''}</div>
+          <div>pcIST</div>
+        </div>
+        <div class="sig right">
+          <div class="sig-line"></div>
+          <div class="sig-name">${right.name || ''}</div>
+          <div class="sig-role">${right.role || ''}</div>
+          <div>pcIST</div>
+        </div>
+      </div>`;
+    }
+    // three
+    const a0 = authorizers[0];
+    const a1 = authorizers[1];
+    const a2 = authorizers[2];
+    return `<div class="signatures three">
+      <div class="sig left">
+        <div class="sig-line"></div>
+        <div class="sig-name">${a0.name || ''}</div>
+        <div class="sig-role">${a0.role || ''}</div>
+        <div>pcIST</div>
+      </div>
+      <div class="sig center">
+        <div class="sig-line"></div>
+        <div class="sig-name">${a1.name || ''}</div>
+        <div class="sig-role">${a1.role || ''}</div>
+        <div>pcIST</div>
+      </div>
+      <div class="sig right">
+        <div class="sig-line"></div>
+        <div class="sig-name">${a2.name || ''}</div>
+        <div class="sig-role">${a2.role || ''}</div>
+        <div>pcIST</div>
+      </div>
+    </div>`;
   })();
 
   const html = `
-  <!doctype html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-  /* reserve extra bottom space so an absolute-positioned signature won't force a new page */
-  @page { size: A4; margin: 20mm 15mm 30mm 15mm; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #222; margin: 0; }
-  .header { text-align: center; position: relative; padding-top: 6mm; }
-  /* logos slightly inset and fully visible */
-  .logo-left, .logo-right { width: 70px; height: 70px; border-radius: 12px; object-fit: cover; position: absolute; top: 0.5mm; }
-  .logo-left { left: 4mm; }
-  .logo-right { right: 4mm; }
-  h1 { margin: 8px 0 2px 0; font-size: 20px; }
-  .address { color: #555; font-size: 12px; margin-bottom: 4px; }
-  .contact { color: #555; font-size: 11px; margin-bottom: 8px; }
-  .rule { height: 4px; background: linear-gradient(90deg, #0b5ed7 0%, #9ec5fe 100%); margin-bottom: 12px; }
-  .meta { display: flex; justify-content: space-between; font-size: 12px; color: #333; margin-bottom: 12px; }
-  .content { font-size: 12.5px; line-height: 1.6; text-align: justify; }
-  .content .para { margin: 0 0 10px 0; }
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>pcIST — High Tech Letter</title>
+<style>
+  @page { size: A4; margin: 15mm 12mm 20mm 12mm; }
+  html,body{height:100%;margin:0;background:#fff;font-family:"Inter","Segoe UI",Roboto,Arial,sans-serif;color:#1f2937;}
+  :root{
+    --blue-1:#0d6efd;
+    --blue-2:#4dabf7;
+    --cyan:#0dcaf0;
+    --accent:linear-gradient(135deg,var(--blue-1),var(--blue-2));
+  }
 
-  /* signatures area (supports 1 or 2 signatories) */
-  .signatures { position: absolute; left: 15mm; right: 15mm; bottom: 12mm; display: flex; justify-content: space-between; align-items: flex-end; }
-  .sig { width: 260px; }
-  .sig.single { margin-left: auto; margin-right: auto; text-align: center; }
-  .sig.left { text-align: left; }
-  .sig.right { text-align: right; }
-  .sig-line { width: 220px; height: 1px; background: #0b5ed7; margin-bottom: 6px; display: block; }
-  .sig-name { font-weight: 700; margin-bottom: 6px; }
-  .sig-role { margin-bottom: 6px; }
+  .page{position:relative;box-sizing:border-box;padding:10mm 18mm 16mm 18mm;overflow:visible;}
 
-  /* corner decorative triangles */
-  .corner { position: fixed; width: 0; height: 0; border-style: solid; z-index: 10; }
-  .corner.tl { left: 0; top: 0; border-width: 0 0 48px 48px; border-color: transparent transparent #0b5ed7 transparent; }
-  .corner.br { right: 0; bottom: 0; border-width: 48px 48px 0 0; border-color: #0b5ed7 transparent transparent transparent; }
+  .frame{position:fixed;inset:6px;border-radius:8px;border:1px solid rgba(13,110,253,0.12);
+    box-shadow:0 3px 12px rgba(13,110,253,0.03),inset 0 1px 0 rgba(255,255,255,0.12);pointer-events:none;z-index:0;}
 
-  footer { clear: both; }
-  /* Ensure content does not overflow; allow page breaks */
-  .page-break { page-break-after: always; }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      <img class="logo-left" src="${istData}" alt="IST">
-      <img class="logo-right" src="${pcistData}" alt="pcIST">
+  .side-strip{position:fixed;top:0;bottom:0;width:6mm;z-index:0;pointer-events:none;
+    filter:drop-shadow(0 2px 8px rgba(13,110,253,0.04));}
+  .side-strip.left{left:0;background:linear-gradient(180deg,rgba(13,110,253,0.2),rgba(13,110,253,0.05));}
+  .side-strip.right{right:0;background:linear-gradient(180deg,rgba(13,110,253,0.2),rgba(13,110,253,0.05));}
+  .side-strip svg g{stroke-width:0.6 !important;}
+
+  /* corner svgs sit behind header content but above the frame; logos will be placed above them */
+  .corner-svgs{position:fixed;left:0;top:0;width:210mm;height:297mm;z-index:5;pointer-events:none;}
+  /* explicit bottom-right triangle SVG to guarantee visibility (bigger, mirrored) */
+  .corner-br-svg{position:fixed;right:0;bottom:0;width:96px;height:96px;z-index:5;pointer-events:none;}
+  .corner-br-svg svg{width:100%;height:100%;display:block}
+
+  header{text-align:center;padding-top:12mm;margin-bottom:2mm;position:relative;z-index:5;}
+  .logo{width:76px;height:76px;object-fit:contain;position:absolute;top:10mm;z-index:6;}
+  .logo.left{left:8mm;}
+  .logo.right{right:8mm;}
+  header h1{margin:6px 0 2px;font-size:20px;font-weight:700;position:relative;z-index:6;}
+  header .sub{color:#6b7280;font-size:11px;margin-bottom:4px;}
+  header .contact{color:#6b7280;font-size:11px;margin-bottom:6px;}
+  .rule{width:78%;height:2px;margin:6px auto 10px;background:linear-gradient(90deg,var(--blue-1),var(--blue-2));border-radius:2px;}
+
+  .meta{display:flex;justify-content:space-between;font-size:12px;color:#111827;margin:6px 0 8px;}
+  .main .content{font-size:11.6px;line-height:1.48;text-align:justify;color:#111827;}
+  .main .content .para{margin-bottom:8px;}
+
+  /* signature area: control layout for 1/2/3 signatures */
+  .signatures{position:relative;display:flex;justify-content:flex-start;align-items:flex-end;gap:36px;margin-top:18mm;z-index:5}
+  .signatures .sig{width:220px;display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+  .signatures .sig.center{align-items:center;text-align:center}
+  .signatures .sig.right{align-items:flex-end;text-align:right}
+  .signatures .sig-line{width:140px;height:2px;background:var(--blue-1);margin-bottom:6px}
+  .signatures .sig-name{font-weight:800;margin-bottom:4px;font-size:12px}
+  .signatures .sig-role{font-size:11px;margin-bottom:2px;color:#374151}
+  /* layout rules per signature count - following exact requirements */
+  /* 1 signature: bottom right */
+  .signatures.single{justify-content:flex-end}
+  /* 2 signatures: opposite sides of the page */
+  .signatures.two{justify-content:space-between}
+  /* 3 signatures: two at sides and one in middle */
+  .signatures.three{justify-content:space-between}
+</style>
+</head>
+<body>
+  <div class="page" role="document">
+    <div class="frame" aria-hidden="true"></div>
+
+    <div class="side-strip left" aria-hidden="true">
+      <!-- Left strip SVG unchanged -->
+      <svg width="100%" height="100%" viewBox="0 0 120 842" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0d6efd" stop-opacity="0.95"/>
+          <stop offset="1" stop-color="#0dcaf0" stop-opacity="0.6"/>
+        </linearGradient></defs>
+        <rect x="0" y="0" width="120" height="842" fill="url(#g1)" opacity="0.12"/>
+        <g stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.2" fill="none">
+          <path d="M26 40 L26 90 L50 90 L50 150" stroke-linecap="round"/>
+          <circle cx="26" cy="40" r="2.2" fill="#fff"/>
+          <path d="M26 220 L26 300 L70 300" stroke-linecap="round"/>
+          <circle cx="26" cy="220" r="2.2" fill="#fff"/>
+          <path d="M26 420 L26 500 L48 500 L48 620" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="side-strip right" aria-hidden="true">
+      <!-- Right strip SVG unchanged -->
+      <svg width="100%" height="100%" viewBox="0 0 120 842" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4dabf7" stop-opacity="0.95"/>
+          <stop offset="1" stop-color="#0d6efd" stop-opacity="0.6"/>
+        </linearGradient></defs>
+        <rect x="0" y="0" width="120" height="842" fill="url(#g2)" opacity="0.12"/>
+        <g stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.2" fill="none">
+          <path d="M94 60 L66 60 L66 120 L94 120" stroke-linecap="round"/>
+          <circle cx="94" cy="60" r="2.2" fill="#fff"/>
+          <path d="M94 240 L94 320 L40 320" stroke-linecap="round"/>
+          <circle cx="94" cy="240" r="2.2" fill="#fff"/>
+          <path d="M94 440 L94 560 L68 560 L68 680" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Updated corner triangles -->
+    <div class="corner-svgs" aria-hidden="true">
+      <svg viewBox="0 0 210 297" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:0;top:0;width:210mm;height:297mm;">
+        <defs>
+          <linearGradient id="triGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0d6efd"/>
+            <stop offset="1" stop-color="#4dabf7"/>
+          </linearGradient>
+          <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="8" result="b"/>
+            <feBlend in="SourceGraphic" in2="b" mode="normal"/>
+          </filter>
+        </defs>
+
+  <!-- Top-left smaller -->
+  <path d="M0 0 L56 0 L0 56 Z" fill="url(#triGrad)" opacity="0.98" filter="url(#soft)"></path>
+  <g transform="translate(6,8) scale(0.75)" stroke="rgba(255,255,255,0.22)" stroke-width="1" fill="none">
+          <path d="M6 12 H48 V28 H60" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="6" cy="12" r="1.6" fill="#fff"/>
+        </g>
+
+        <!-- Bottom-right mirrored (match top-left size) + circuit details -->
+        <g transform="translate(210,297) rotate(180)">
+          <path d="M0 0 L56 0 L0 56 Z" fill="url(#triGrad)" opacity="0.98" filter="url(#soft)"></path>
+          <g transform="translate(8,10) scale(0.75)" stroke="rgba(255,255,255,0.22)" stroke-width="1" fill="none">
+            <path d="M6 12 H48 V28 H60" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="6" cy="12" r="1.6" fill="#fff"/>
+            <path d="M12 36 H40 V48 H54" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="36" r="1.6" fill="#fff"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    
+
+    <header>
+      <img class="logo left" src="${istData}" alt="IST Logo" />
+      <img class="logo right" src="${pcistData}" alt="pcIST Logo" />
       <h1>Programming Club of IST (pcIST)</h1>
-      <div class="address">${address}</div>
+      <div class="sub">Institute of Science &amp; Technology — Dhaka</div>
       ${contactLine ? `<div class="contact">${contactLine}</div>` : ''}
+      <div class="rule"></div>
+    </header>
+
+    <main class="main">
+      <div class="meta">
+        <div>Date: <strong>${dateStr}</strong></div>
+        <div>SN: <strong>${serial}</strong></div>
+      </div>
+      <section class="content" id="content">
+        ${paragraphs}
+      </section>
+  </main>
+
+    <!-- signature will be injected at the bottom of the last page by a measurement pass -->
+    <!-- fixed bottom-right triangle (explicit SVG) -->
+    <div class="corner-br-svg" aria-hidden="true">
+  <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="triGradBR" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0d6efd"/>
+            <stop offset="1" stop-color="#4dabf7"/>
+          </linearGradient>
+        </defs>
+        <!-- rotated so triangle points inward from bottom-right -->
+        <g transform="translate(96,96) rotate(180)">
+          <path d="M0 0 L96 0 L0 96 Z" fill="url(#triGradBR)" opacity="0.98"/>
+          <g transform="translate(10,12) scale(0.9)" stroke="rgba(255,255,255,0.22)" stroke-width="1" fill="none">
+          <path d="M6 12 H48 V28 H60" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="6" cy="12" r="1.6" fill="#fff"/>
+          </g>
+        </g>
+      </svg>
     </div>
-    <div class="rule"></div>
-    <div class="meta">
-      <div>Date: ${dateStr}</div>
-      <div>SN: ${serial}</div>
-    </div>
-    <div class="content">
-      ${paragraphs}
-    </div>
-  ${signatureHtml}
-  </body>
-  </html>
+  </div>
+</body>
+</html>
+
+
   `;
 
-  // Launch puppeteer lazily to avoid hard dependency at module load
   let puppeteer;
   try {
     puppeteer = (await import('puppeteer')).default;
-  } catch (err) {
-    // If puppeteer is not installed, surface clear error
-    throw new Error('Puppeteer is not installed. Install puppeteer to use the Puppeteer PDF generator.');
+  } catch {
+    throw new Error('Puppeteer is not installed. Run `npm install puppeteer`.');
   }
 
   const launchArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
-  const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN || undefined;
+  const execPath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.GOOGLE_CHROME_BIN ||
+    undefined;
 
-  const browser = await puppeteer.launch({ headless: true, args: launchArgs, executablePath: execPath });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: launchArgs,
+    executablePath: execPath,
+  });
+
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
-    const buffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } });
+
+    // If there are signatures, do a measurement pass to pin them to the bottom of the last page
+    if (signatureHtml && String(signatureHtml).trim()) {
+      await page.evaluate((sigHtml) => {
+        const pxPerMm = 96 / 25.4;
+        const pageHeightMm = 297;
+        const topMarginMm = 15; // matches @page margin and pdf margin
+        const bottomMarginMm = 20;
+        const printablePx = (pageHeightMm - topMarginMm - bottomMarginMm) * pxPerMm;
+
+  const pageEl = document.querySelector('.page');
+        if (!pageEl) return;
+
+        const contentHeight = pageEl.scrollHeight;
+        const pages = Math.max(1, Math.ceil(contentHeight / printablePx));
+
+        // create a hidden measurement node to get signature height
+        const meas = document.createElement('div');
+        meas.style.position = 'absolute';
+        meas.style.visibility = 'hidden';
+        meas.style.left = '0';
+        meas.innerHTML = sigHtml;
+        pageEl.appendChild(meas);
+        const sigHeight = Math.ceil(meas.getBoundingClientRect().height);
+        pageEl.removeChild(meas);
+
+  const cs = getComputedStyle(pageEl);
+  const padLeft = parseFloat(cs.paddingLeft || '0');
+  const padRight = parseFloat(cs.paddingRight || '0');
+  const padBottom = parseFloat(cs.paddingBottom || '0');
+
+  // move signatures left by ~20% - minimal left padding, keep right padding for safety
+  const extraPadMm = 6; // total: 0.5mm left, 5.5mm right - moves signatures significantly left
+  const leftPadMm = 0//0.5;
+  const rightPadMm = 18//5.5;
+  const leftPadPx = Math.round(leftPadMm * pxPerMm);
+  const rightPadPx = Math.round(rightPadMm * pxPerMm);
+
+  // compute top (px) relative to the top of .page so signature sits at bottom of last printable page
+  const desiredTop = Math.max((pages * printablePx) - sigHeight - padBottom, pageEl.scrollHeight - sigHeight);
+
+  const container = document.createElement('div');
+  container.id = '__signature_float';
+  container.style.position = 'absolute';
+  container.style.top = desiredTop + 'px';
+  // position container at base left with asymmetric padding favoring left
+  const baseLeft = padLeft + leftPadPx;
+  container.style.left = baseLeft + 'px';
+  container.style.width = Math.max(0, pageEl.clientWidth - padLeft - padRight - leftPadPx - rightPadPx) + 'px';
+  container.style.paddingLeft = leftPadPx + 'px';
+  container.style.paddingRight = rightPadPx + 'px';
+  container.innerHTML = sigHtml;
+  pageEl.appendChild(container);
+      }, signatureHtml);
+      // allow layout to settle
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+    }
+
+    const buffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '15mm', bottom: '20mm', left: '12mm', right: '12mm' },
+    });
     await page.close();
     await browser.close();
     return { buffer, serial, dateStr };

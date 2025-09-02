@@ -5,8 +5,9 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "server": "nodemon server.js"
+  "test": "echo \"Error: no test specified\" && exit 1",
+  "server": "nodemon server.js",
+  "pdf:test": "node utils/pdf_test_runner.js"
   },
   "repository": {
     "type": "git",
