@@ -18,11 +18,11 @@ import adminAuth from "../middlewares/adminAuth.js";
 import { 
   sendPadStatementEmail, 
   downloadPadStatementPDF,
-  downloadPadStatementBySerial, 
+  downloadPadStatementById, 
   listPadStatementHistory,
   sendInvoiceEmail,
   downloadInvoicePDF,
-  downloadInvoiceBySerial,
+  downloadInvoiceById,
   listInvoiceHistory
 } from "../controllers/notificationController.js";
 
@@ -42,13 +42,13 @@ userRouter.post("/update-membership-status/:id", adminAuth, updateMembershipStat
 // Pad statement endpoints
 userRouter.post("/pad/send", sendPadStatementEmail);
 userRouter.post("/pad/download", downloadPadStatementPDF);
-userRouter.get("/pad/download/:serial", downloadPadStatementBySerial);
+userRouter.get("/pad/download/:id", downloadPadStatementById);
 userRouter.get("/pad/history", listPadStatementHistory);
 
 // Invoice endpoints
 userRouter.post("/invoice/send", sendInvoiceEmail);
 userRouter.post("/invoice/download", downloadInvoicePDF);
-userRouter.get("/invoice/download/:serial", downloadInvoiceBySerial);
+userRouter.get("/invoice/download/:id", downloadInvoiceById);
 userRouter.get("/invoice/history", listInvoiceHistory);
 //userRouter.post("/get-user-data-admin", adminAuth, getUserData);
 //userRouter.post("/register-for-event/:id", auth, registerForEvent);

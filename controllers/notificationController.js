@@ -453,19 +453,19 @@ const downloadInvoicePDF = async (req, res) => {
   }
 };
 
-const downloadPadStatementBySerial = async (req, res) => {
+const downloadPadStatementById = async (req, res) => {
   try {
-    const { serial } = req.params;
+    const { id } = req.params;
 
-    if (!serial) {
+    if (!id) {
       return res.status(400).json({ 
         success: false, 
-        message: "PAD statement serial number is required" 
+        message: "PAD statement ID is required" 
       });
     }
 
-    // Find the PAD statement in the database
-    const padStatement = await PadStatement.findOne({ serial });
+    // Find the PAD statement in the database by _id
+    const padStatement = await PadStatement.findById(id);
 
     if (!padStatement) {
       return res.status(404).json({ 
@@ -494,7 +494,7 @@ const downloadPadStatementBySerial = async (req, res) => {
 
     // Set headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${padStatement.serial}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
 
     // Send the PDF buffer directly
@@ -505,19 +505,19 @@ const downloadPadStatementBySerial = async (req, res) => {
   }
 };
 
-const downloadInvoiceBySerial = async (req, res) => {
+const downloadInvoiceById = async (req, res) => {
   try {
-    const { serial } = req.params;
+    const { id } = req.params;
 
-    if (!serial) {
+    if (!id) {
       return res.status(400).json({ 
         success: false, 
-        message: "Invoice serial number is required" 
+        message: "Invoice ID is required" 
       });
     }
 
-    // Find the invoice in the database
-    const invoice = await Invoice.findOne({ serial });
+    // Find the invoice in the database by _id
+    const invoice = await Invoice.findById(id);
 
     if (!invoice) {
       return res.status(404).json({ 
@@ -543,7 +543,7 @@ const downloadInvoiceBySerial = async (req, res) => {
 
     // Set headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${invoice.serial}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
 
     // Send the PDF buffer directly
@@ -590,11 +590,11 @@ export {
   sendInvoiceEmail_legacy, 
   sendPadStatementEmail, 
   downloadPadStatementPDF,
-  downloadPadStatementBySerial, 
+  downloadPadStatementById, 
   listPadStatementHistory,
   sendInvoiceEmail,
   downloadInvoicePDF,
-  downloadInvoiceBySerial,
+  downloadInvoiceById,
   listInvoiceHistory
 };
 

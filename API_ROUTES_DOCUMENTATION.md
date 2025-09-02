@@ -42,10 +42,10 @@
 ```
 **Response:** PDF file download
 
-### 3. Download PAD Statement by Serial
-**GET** `/pad/download/:serial`
+### 3. Download PAD Statement by ID
+**GET** `/pad/download/:id`
 
-Example: `GET /pad/download/pcIST-2025-0001`
+Example: `GET /pad/download/675b123456789abcdef12345`
 
 **Response:** PDF file download
 
@@ -119,10 +119,10 @@ Example: `GET /pad/download/pcIST-2025-0001`
 ```
 **Response:** PDF file download
 
-### 3. Download Invoice by Serial
-**GET** `/invoice/download/:serial`
+### 3. Download Invoice by ID
+**GET** `/invoice/download/:id`
 
-Example: `GET /invoice/download/INV-2025-0001`
+Example: `GET /invoice/download/675b123456789abcdef12345`
 
 **Response:** PDF file download
 
@@ -160,10 +160,10 @@ Example: `GET /invoice/download/INV-2025-0001`
 
 ### JavaScript/React Example
 ```javascript
-// Download invoice by serial
-const downloadInvoice = async (serial) => {
+// Download invoice by ID
+const downloadInvoice = async (id, filename) => {
   try {
-    const response = await fetch(`/invoice/download/${serial}`, {
+    const response = await fetch(`/invoice/download/${id}`, {
       method: 'GET',
       headers: {
         'Authorization': 'Bearer ' + token // if auth required
@@ -175,7 +175,7 @@ const downloadInvoice = async (serial) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${serial}.pdf`;
+      a.download = filename || 'invoice.pdf';
       a.click();
       window.URL.revokeObjectURL(url);
     }
@@ -194,13 +194,13 @@ const getInvoices = async (page = 1) => {
 
 ### cURL Examples
 ```bash
-# Download PAD statement by serial
-curl -X GET "http://localhost:4000/pad/download/pcIST-2025-0001" \
+# Download PAD statement by ID
+curl -X GET "http://localhost:4000/pad/download/675b123456789abcdef12345" \
   -H "Content-Type: application/json" \
   --output "pad-statement.pdf"
 
-# Download invoice by serial
-curl -X GET "http://localhost:4000/invoice/download/INV-2025-0001" \
+# Download invoice by ID
+curl -X GET "http://localhost:4000/invoice/download/675b123456789abcdef12345" \
   -H "Content-Type: application/json" \
   --output "invoice.pdf"
 
@@ -217,7 +217,9 @@ curl -X GET "http://localhost:4000/invoice/history?page=1&limit=5" \
    - PAD statements: `pcIST-YYYY-NNNN` (e.g., pcIST-2025-0001)
    - Invoices: `INV-YYYY-NNNN` (e.g., INV-2025-0001)
 
-2. **Authentication:**
+2. **Download Methods:**
+   - Use document `_id` for downloading from history/database records
+   - Serial numbers are still used for display and filename purposes
    - Add authentication headers if your routes require authorization
 
 3. **Error Handling:**
