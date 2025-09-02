@@ -296,14 +296,15 @@ const sendInvoiceEmail = async (req, res) => {
       }
     }
 
-    // Generate invoice PDF
-    const { buffer, serial, dateStr, grandTotal } = await generateInvoicePDFWithPuppeteer({
+    // Generate invoice PDF (new invoice, so no issueDate provided)
+    const { buffer, serial, issueDateStr, generatedDateStr, grandTotal } = await generateInvoicePDFWithPuppeteer({
       products,
       authorizerName,
       authorizerDesignation,
       contactEmail,
       contactPhone,
       address,
+      issueDate: null, // New invoice, will use current date as issue date
     });
 
     // Calculate product totals and prepare for database
@@ -329,7 +330,8 @@ const sendInvoiceEmail = async (req, res) => {
       contactEmail,
       contactPhone,
       address,
-      dateStr,
+      issueDate: new Date(), // Store the issue date as Date object
+      dateStr: issueDateStr, // Store formatted issue date string
       createdBy: req.user?._id,
       sentViaEmail: true,
       sentAt: new Date(),
@@ -338,7 +340,7 @@ const sendInvoiceEmail = async (req, res) => {
     const html = `<p>Dear Valued Client,</p>
       <p>Please find attached your invoice from the Programming Club of IST.</p>
       <p><strong>Invoice #:</strong> ${serial}<br/>
-      <strong>Date:</strong> ${dateStr}<br/>
+      <strong>Issue Date:</strong> ${issueDateStr}<br/>
       <strong>Total Amount:</strong> ৳${grandTotal.toFixed(2)}</p>
       <p>Thank you for your business!</p>
       <p>Regards,<br/>Programming Club of IST</p>`;
@@ -360,7 +362,7 @@ const sendInvoiceEmail = async (req, res) => {
       message: "Invoice email sent successfully", 
       invoiceId: invoice._id,
       serial, 
-      date: dateStr,
+      issueDate: issueDateStr,
       total: grandTotal 
     });
   } catch (error) {
@@ -397,14 +399,15 @@ const downloadInvoicePDF = async (req, res) => {
       }
     }
 
-    // Generate invoice PDF
-    const { buffer, serial, dateStr, grandTotal } = await generateInvoicePDFWithPuppeteer({
+    // Generate invoice PDF (new invoice, so no issueDate provided)
+    const { buffer, serial, issueDateStr, generatedDateStr, grandTotal } = await generateInvoicePDFWithPuppeteer({
       products,
       authorizerName,
       authorizerDesignation,
       contactEmail,
       contactPhone,
       address,
+      issueDate: null, // New invoice, will use current date as issue date
     });
 
     // Calculate product totals and prepare for database
@@ -430,7 +433,8 @@ const downloadInvoicePDF = async (req, res) => {
       contactEmail,
       contactPhone,
       address,
-      dateStr,
+      issueDate: new Date(), // Store the issue date as Date object
+      dateStr: issueDateStr, // Store formatted issue date string
       createdBy: req.user?._id,
       sentViaEmail: false,
       downloadedAt: new Date(),
@@ -522,7 +526,7 @@ const downloadInvoiceBySerial = async (req, res) => {
       });
     }
 
-    // Regenerate the PDF using the stored data
+    // Regenerate the PDF using the stored data (use stored issueDate)
     const { buffer } = await generateInvoicePDFWithPuppeteer({
       products: invoice.products,
       authorizerName: invoice.authorizerName,
@@ -530,6 +534,7 @@ const downloadInvoiceBySerial = async (req, res) => {
       contactEmail: invoice.contactEmail,
       contactPhone: invoice.contactPhone,
       address: invoice.address,
+      issueDate: invoice.issueDate, // Use the stored issue date
     });
 
     // Update download timestamp

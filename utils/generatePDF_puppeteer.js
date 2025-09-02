@@ -419,6 +419,7 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
     contactEmail = '',
     contactPhone = '',
     address = 'Institute of Science & Technology (IST), Dhaka',
+    issueDate = null, // The original issue date (from database or null for new invoice)
   } = opts;
 
   // Load logos
@@ -429,17 +430,27 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
   const pcistData = `data:image/png;base64,${pcistBuf.toString('base64')}`;
 
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-GB', {
+  
+  // Issue date: use provided issueDate or current date for new invoices
+  const issueDateObj = issueDate ? new Date(issueDate) : today;
+  const issueDateStr = issueDateObj.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
   
-  // Generate invoice serial number
+  // Generated date: always current date
+  const generatedDateStr = today.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+  
+  // Generate invoice serial number using issue date year
   const currentCount = await Invoice.countDocuments({});
   const nextNumber = currentCount + 1;
   const paddedNumber = nextNumber.toString().padStart(4, '0');
-  const serial = `INV-${today.getFullYear()}-${paddedNumber}`;
+  const serial = `INV-${issueDateObj.getFullYear()}-${paddedNumber}`;
 
   // Calculate totals for each product and grand total
   let grandTotal = 0;
@@ -534,36 +545,6 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
           color: #666;
         }
         
-        .invoice-details {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 30px;
-          gap: 40px;
-        }
-        
-        .invoice-info {
-          flex: 1;
-        }
-        
-        .section-title {
-          font-size: 16px;
-          font-weight: bold;
-          color: #1e3a8a;
-          margin-bottom: 10px;
-          padding-bottom: 5px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .info-item {
-          margin-bottom: 5px;
-          font-size: 14px;
-        }
-        
-        .info-label {
-          font-weight: bold;
-          color: #374151;
-        }
-        
         .products-table {
           width: 100%;
           border-collapse: collapse;
@@ -596,7 +577,7 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
         .total-section {
           margin-left: auto;
           width: 300px;
-          margin-bottom: 40px;
+          margin-bottom: 30px;
         }
         
         .total-row {
@@ -675,19 +656,7 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
             <div class="invoice-title">INVOICE</div>
             <div class="invoice-meta">
               <div><strong>Invoice #:</strong> ${serial}</div>
-              <div><strong>Date:</strong> ${dateStr}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="invoice-details">
-          <div class="invoice-info">
-            <div class="section-title">Invoice Details</div>
-            <div class="info-item">
-              <span class="info-label">Invoice Number:</span> ${serial}
-            </div>
-            <div class="info-item">
-              <span class="info-label">Issue Date:</span> ${dateStr}
+              <div><strong>Issue Date:</strong> ${issueDateStr}</div>
             </div>
           </div>
         </div>
@@ -763,14 +732,14 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
       const contentHeight = pageElement.scrollHeight;
       
       // Calculate available page height (A4 = 297mm - margins)
-      const pageHeightMm = 297 - 15 - 25; // Top and bottom margins
+      const pageHeightMm = 297 - 15 - 15; // Top and bottom margins
       const pageHeightPx = (pageHeightMm * 96) / 25.4; // Convert mm to px
       
       return { contentHeight, pageHeightPx };
     });
     
     // Calculate position for signature and footer (ensure they're at the bottom)
-    const signatureSpaceNeeded = 120; // Space needed for signature + footer
+    const signatureSpaceNeeded = 90; // Reduced space needed for signature + footer (was 120)
     const minTopPosition = measurements.contentHeight + 30; // Content + some gap
     const maxTopPosition = measurements.pageHeightPx - signatureSpaceNeeded;
     const signatureTopPosition = Math.max(minTopPosition, maxTopPosition);
@@ -779,16 +748,16 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
     const finalHtml = html.replace(
       /<div class="signature-section">[\s\S]*?<\/div>\s*<div class="footer">[\s\S]*?<\/div>/,
       `<div style="position: absolute; top: ${signatureTopPosition}px; right: 0; width: 100%;">
-          <div class="signature-section" style="margin-top: 0; margin-bottom: 20px;">
+          <div class="signature-section" style="margin-top: 0; margin-bottom: 10px;">
             <div class="signature-box">
               <div class="signature-line"></div>
               <div class="signature-name">${authorizerName}</div>
               <div class="signature-designation">${authorizerDesignation}</div>
             </div>
           </div>
-          <div class="footer" style="margin-top: 0; text-align: center;">
+          <div class="footer" style="margin-top: 0; margin-bottom: 0; text-align: center;">
             This is a computer generated invoice and does not require a physical signature.<br/>
-            Invoice ID: ${serial} | Generated on: ${dateStr}
+            Invoice ID: ${serial} | Generated on: ${generatedDateStr}
           </div>
         </div>`
     );
@@ -807,7 +776,7 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
     await page.close();
     await browser.close();
     
-    return { buffer, serial, dateStr, grandTotal };
+    return { buffer, serial, issueDateStr, generatedDateStr, grandTotal };
   } catch (err) {
     if (browser) await browser.close();
     throw err;

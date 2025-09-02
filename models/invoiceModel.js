@@ -17,7 +17,8 @@ const invoiceSchema = new mongoose.Schema(
     contactEmail: { type: String },
     contactPhone: { type: String },
     address: { type: String, default: 'Institute of Science & Technology (IST), Dhaka' },
-    dateStr: { type: String, required: true },
+    issueDate: { type: Date, required: true }, // The original issue date (never changes)
+    dateStr: { type: String, required: true }, // Formatted issue date string
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
     sentViaEmail: { type: Boolean, default: false },
     sentAt: { type: Date },
