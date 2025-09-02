@@ -154,6 +154,62 @@ const listPadStatementHistory = async (req, res) => {
   }
 }
 
+const downloadPadStatementPDF = async (req, res) => {
+  try {
+    const { statement, authorizedBy, authorizerName, authorizedBy2, authorizerName2, authorizedBy3, authorizerName3, contactEmail, contactPhone, address } = req.body;
+    
+    if (!statement) {
+      return res.status(400).json({ success: false, message: "statement is required" });
+    }
+
+    // Generate PDF using Puppeteer
+    const { buffer, serial, dateStr } = await generatePadPDFWithPuppeteer({
+      statement,
+      authorizedBy,
+      authorizerName,
+      authorizedBy2,
+      authorizerName2,
+      authorizedBy3,
+      authorizerName3,
+      contactEmail,
+      contactPhone,
+      address,
+    });
+
+    // Save request to DB for tracking (without email sending)
+    const record = await PadStatement.create({
+      receiverEmail: null, // No email recipient for download
+      subject: "PDF Download",
+      statement,
+      authorizedBy,
+      authorizerName,
+      authorizedBy2,
+      authorizerName2,
+      authorizedBy3,
+      authorizerName3,
+      contactEmail,
+      contactPhone,
+      address,
+      serial,
+      dateStr,
+      createdBy: req.user?._id,
+      sent: false,
+      downloadedAt: new Date(),
+    });
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    // Send the PDF buffer directly
+    return res.send(buffer);
+  } catch (error) {
+    console.error("Error generating PDF for download:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const sendInvoiceEmail = async (req, res) => {
   try {
     const { email, subject = "Invoice", description = {"NULL" : "NULL"} } = req.body;
@@ -169,5 +225,5 @@ const sendInvoiceEmail = async (req, res) => {
   }
 }
 
-export { notifyAllUsers, notifyOneUser, sendInvoiceEmail, sendPadStatementEmail, listPadStatementHistory };
+export { notifyAllUsers, notifyOneUser, sendInvoiceEmail, sendPadStatementEmail, downloadPadStatementPDF, listPadStatementHistory };
 
