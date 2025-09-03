@@ -566,8 +566,8 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
         <td class="text-center">${index + 1}</td>
         <td>${product.description || ''}</td>
         <td class="text-center">${quantity}</td>
-        <td class="text-right">৳${unitPrice.toFixed(2)}</td>
-        <td class="text-right">৳${total.toFixed(2)}</td>
+        <td class="text-right">${unitPrice.toFixed(2)}</td>
+        <td class="text-right">${total.toFixed(2)}</td>
       </tr>
     `;
   }).join('');
@@ -780,7 +780,7 @@ const generateInvoicePDFWithPuppeteer = async (opts = {}) => {
         <div class="total-section">
           <div class="total-row grand-total">
             <span>Grand Total:</span>
-            <span>৳${grandTotal.toFixed(2)}</span>
+            <span>${grandTotal.toFixed(2)} tk</span>
           </div>
         </div>
         
