@@ -421,84 +421,148 @@ const fetchGalleryImages = async (req, res) => {
 const updatePayment = async (req, res) => {
   try {
     const eventId = req.params.id;
-    const {members, paymentStatus} = req.body;
-    if(paymentStatus == null){
-      return res.status(400).json({ message: "paymentStatus is required" });
-    }
+    const { members, paymentStatus: globalPaymentStatus } = req.body;
+    // Members must be a non-empty array
     if (!Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ message: "members array is required" });
     }
+
+    // Fetch event (solo first, then team)
     let eventType = 'solo';
     let event = await soloEvents.findById(eventId);
-    if(event == null){
+    if (!event) {
       event = await teamEvents.findById(eventId);
-      if(event == null){
-        return res.status(404).json({ message: "Event not found" });
-      }
+      if (!event) return res.status(404).json({ message: "Event not found" });
       eventType = 'team';
     }
 
-    // Normalize member IDs (strings) and ensure uniqueness
-    const memberIds = [...new Set(members.map(m => m.toString()))];
-
-    if(eventType === 'solo'){
-      // For solo events we expect a single member id, but we'll iterate for safety
-      for(const memberId of memberIds){
-        await soloEvents.updateOne(
-          { _id: eventId, "registeredMembers.userId": memberId },
-          { $set: { "registeredMembers.$.paymentStatus": paymentStatus } }
-        );
+    // Prepare resolved member targets with userId + desired status
+    // Support shapes: string (userId), { userId, status }, { classroll, status }
+    // If globalPaymentStatus provided, override individual status requirements
+    const resolved = [];
+    for (const m of members) {
+      // Plain string userId case
+      if (typeof m === 'string') {
+        if (globalPaymentStatus == null) {
+          return res.status(400).json({ message: "Each member object must include status when global paymentStatus is not provided" });
+        }
+        resolved.push({ userId: m, status: !!globalPaymentStatus });
+        continue;
       }
+      if (typeof m !== 'object' || m === null) {
+        return res.status(400).json({ message: "Invalid member entry" });
+      }
+      const { userId, classroll } = m;
+      let status = globalPaymentStatus != null ? !!globalPaymentStatus : m.status;
+      if (status == null) {
+        return res.status(400).json({ message: "Member status missing and no global paymentStatus provided" });
+      }
+      if (userId && classroll) {
+        return res.status(400).json({ message: "Provide either userId or classroll, not both" });
+      }
+      let finalUserId = userId;
+      if (!finalUserId && classroll != null) {
+        const userDoc = await userModel.findOne({ classroll: classroll });
+        if (!userDoc) {
+          return res.status(404).json({ message: `User with classroll ${classroll} not found` });
+        }
+        finalUserId = userDoc._id.toString();
+      }
+      if (!finalUserId) {
+        return res.status(400).json({ message: "Member must include userId or classroll" });
+      }
+      resolved.push({ userId: finalUserId.toString(), status: !!status });
+    }
 
-      // After marking payment, add participation entries only if paymentStatus === true
-      if(paymentStatus === true){
-        for(const memberId of memberIds){
-          const user = await userModel.findById(memberId);
-          if(!user) continue;
-          // Migrate / ensure structure
-          if(!user.myParticipations || Array.isArray(user.myParticipations)){
-            user.myParticipations = { solo: [], team: [] };
-          } else {
-            user.myParticipations.solo = user.myParticipations.solo || [];
-            user.myParticipations.team = user.myParticipations.team || [];
-          }
-            const exists = user.myParticipations.solo.some(p => p.eventId && p.eventId.toString() === event._id.toString());
-            if(!exists){
-              user.myParticipations.solo.push({ eventId: event._id, eventName: event.eventName });
-              await user.save();
+    // Deduplicate keeping last status occurrence
+    const statusMap = new Map(); // userId -> status
+    resolved.forEach(r => statusMap.set(r.userId, r.status));
+    const userIdList = Array.from(statusMap.keys());
+
+    let updatedCount = 0;
+
+    if (eventType === 'solo') {
+      // Load event doc (already have) and update inline for potential mixed statuses
+      let modified = false;
+      for (const member of event.registeredMembers) {
+        const uid = member.userId.toString();
+        if (statusMap.has(uid)) {
+          const newStatus = statusMap.get(uid);
+            if (member.paymentStatus !== newStatus) {
+              member.paymentStatus = newStatus;
+              modified = true;
+              updatedCount++;
             }
         }
       }
-      return res.status(200).json({ message: "Payment status updated", eventType, eventId });
+      if (modified) await event.save();
     } else {
-      const result = await teamEvents.updateOne(
-        { _id: eventId },
-        { $set: { "registeredTeams.$[].members.$[member].paymentStatus": paymentStatus } },
-        { arrayFilters: [ { "member.userId": { $in: memberIds } } ] }
-      );
-
-      // Add participation only when paymentStatus true
-      if(paymentStatus === true){
-        for(const memberId of memberIds){
-          const user = await userModel.findById(memberId);
-          if(!user) continue;
-          if(!user.myParticipations || Array.isArray(user.myParticipations)){
-            user.myParticipations = { solo: [], team: [] };
-          } else {
-            user.myParticipations.solo = user.myParticipations.solo || [];
-            user.myParticipations.team = user.myParticipations.team || [];
-          }
-          const exists = user.myParticipations.team.some(p => p.eventId && p.eventId.toString() === event._id.toString());
-          if(!exists){
-            user.myParticipations.team.push({ eventId: event._id, eventName: event.eventName });
-            await user.save();
+      // Team event: if all statuses identical we can use fast bulk update; else mutate document
+      const uniqueStatuses = new Set(statusMap.values());
+      if (uniqueStatuses.size === 1) {
+        const unifiedStatus = uniqueStatuses.values().next().value;
+        const result = await teamEvents.updateOne(
+          { _id: eventId },
+          { $set: { "registeredTeams.$[].members.$[member].paymentStatus": unifiedStatus } },
+          { arrayFilters: [ { "member.userId": { $in: userIdList } } ] }
+        );
+        updatedCount = result.modifiedCount || 0;
+        // Need fresh event doc for participation additions
+        event = await teamEvents.findById(eventId);
+      } else {
+        // Mixed statuses; mutate document in memory
+        let modified = false;
+        for (const team of event.registeredTeams) {
+          for (const mem of team.members) {
+            const uid = mem.userId.toString();
+            if (statusMap.has(uid)) {
+              const desired = statusMap.get(uid);
+              if (mem.paymentStatus !== desired) {
+                mem.paymentStatus = desired;
+                modified = true;
+                updatedCount++;
+              }
+            }
           }
         }
+        if (modified) await event.save();
       }
-
-      const updatedCount = result.modifiedCount || 0;
-      return res.status(200).json({ message: `Payment status updated for event type: ${eventType}, updatedCount: ${updatedCount}, eventId: ${eventId}` });
     }
+
+    // After updating payment statuses, add participations for those now true
+    // (We do not remove participations when status flips to false per current requirement)
+    const paidUserIds = userIdList.filter(uid => statusMap.get(uid) === true);
+    for (const uid of paidUserIds) {
+      const user = await userModel.findById(uid);
+      if (!user) continue;
+      if (!user.myParticipations || Array.isArray(user.myParticipations)) {
+        user.myParticipations = { solo: [], team: [] };
+      } else {
+        user.myParticipations.solo = user.myParticipations.solo || [];
+        user.myParticipations.team = user.myParticipations.team || [];
+      }
+      if (eventType === 'solo') {
+        const exists = user.myParticipations.solo.some(p => p.eventId && p.eventId.toString() === event._id.toString());
+        if (!exists) {
+          user.myParticipations.solo.push({ eventId: event._id, eventName: event.eventName });
+          await user.save();
+        }
+      } else {
+        const exists = user.myParticipations.team.some(p => p.eventId && p.eventId.toString() === event._id.toString());
+        if (!exists) {
+          user.myParticipations.team.push({ eventId: event._id, eventName: event.eventName });
+          await user.save();
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment status updated',
+      eventType,
+      eventId,
+      updatedCount
+    });
   } catch (err) {
     console.error('updatePayment error:', err);
     return res.status(500).json({ message: 'Internal server error' });
