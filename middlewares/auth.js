@@ -9,19 +9,20 @@ const auth = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const { slug } = req.body;
+  let { slug } = req.body;
 
     if (!token) {
       return res.status(401).json({ message: "Not Authorized. Login again." });
     }
 
-    if (!slug) {
+    if (!slug || typeof slug !== 'string') {
       return res.status(400).json({ message: "Missing email or slug." });
     }
+    slug = String(slug).trim();
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Find user by slug
-    const user = await userModel.findOne({ slug });
+  const user = await userModel.findOne({ slug });
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }

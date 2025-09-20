@@ -12,6 +12,19 @@
 				"$eslint-stylish"
 			],
 			"group": "build"
+		},
+		{
+			"label": "npm install deps",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
 		}
 	]
 }
