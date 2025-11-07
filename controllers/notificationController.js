@@ -1,4 +1,7 @@
 import admin from "../configs/firebase.js";
+import cloudinary from "../configs/cloudinary.js";
+import axios from "axios";
+import streamifier from "streamifier";
 import { invoiceEmail, sendEmailWithAttachments } from "../utils/sendEmail.js";
 import { generatePadPDFWithPuppeteer, generateInvoicePDFWithPuppeteer } from "../utils/generatePDF_puppeteer.js";
 import PadStatement from "../models/padStatementModel.js";
@@ -180,22 +183,53 @@ const listPadStatementHistory = async (req, res) => {
 
 const downloadPadStatementPDF = async (req, res) => {
   try {
-    const { 
-      statement, 
-      authorizers = [],
-      contactEmail = '', 
-      contactPhone = '', 
-      address = 'Institute of Science & Technology (IST), Dhaka'
-    } = req.body;
-    
-    if (!statement) {
-      return res.status(400).json({ success: false, message: "statement is required" });
+    const uploadedFile = req.file;
+    if (!uploadedFile) {
+      return res.status(400).json({ success: false, message: "statementPdf file is required" });
+    }
+    if (uploadedFile.mimetype !== "application/pdf") {
+      return res.status(400).json({ success: false, message: "Only PDF files are accepted" });
     }
 
-    // Ensure authorizers is an array (can be empty)
-    if (!Array.isArray(authorizers)) {
-      return res.status(400).json({ success: false, message: "authorizers must be an array" });
+    // Parse optional fields (sent as multipart/form-data strings)
+    const contactEmail = req.body.contactEmail || '';
+    const contactPhone = req.body.contactPhone || '';
+    const address = req.body.address || 'Institute of Science & Technology (IST), Dhaka';
+
+    let authorizers = [];
+    if (req.body.authorizers) {
+      if (Array.isArray(req.body.authorizers)) {
+        authorizers = req.body.authorizers
+          .map((entry) => {
+            if (typeof entry === 'string') {
+              try {
+                return JSON.parse(entry);
+              } catch (parseError) {
+                return null;
+              }
+            }
+            return entry;
+          })
+          .filter(Boolean);
+      } else {
+        try {
+          const parsed = JSON.parse(req.body.authorizers);
+          authorizers = Array.isArray(parsed) ? parsed : [];
+        } catch (parseError) {
+          return res.status(400).json({ success: false, message: "authorizers must be a JSON array" });
+        }
+      }
     }
+
+    // Normalize authorizer objects to expected shape
+    authorizers = authorizers
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((a) => ({
+        name: a.name || a.fullName || '',
+        role: a.role || a.title || '',
+      }))
+      .filter((a) => a.name && a.role);
 
     // Generate serial number before PDF generation to ensure consistency
     const today = new Date();
@@ -203,32 +237,30 @@ const downloadPadStatementPDF = async (req, res) => {
     const nextNumber = currentCount + 1;
     const paddedNumber = nextNumber.toString().padStart(4, '0');
     const serial = `pcIST-${today.getFullYear()}-${paddedNumber}`;
-    
+
     const dateStr = today.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
 
-    // Prepare parameters for PDF generation with pre-generated serial
     const pdfParams = {
-      statement,
+      statement: '',
       contactEmail,
       contactPhone,
       address,
       authorizers,
-      serial,  // Pass the pre-generated serial
-      dateStr  // Pass the pre-generated date
+      serial,
+      dateStr,
+      uploadedPdfBuffer: uploadedFile.buffer,
     };
 
-    // Generate PDF using Puppeteer
     const { buffer } = await generatePadPDFWithPuppeteer(pdfParams);
 
-    // Save request to DB for tracking (without email sending)
-    const record = await PadStatement.create({
-      receiverEmail: null, // No email recipient for download
+    const record = new PadStatement({
+      receiverEmail: null,
       subject: "PDF Download",
-      statement,
+      statement: null,
       authorizers,
       contactEmail,
       contactPhone,
@@ -240,12 +272,42 @@ const downloadPadStatementPDF = async (req, res) => {
       downloadedAt: new Date(),
     });
 
-    // Set headers for PDF download
+    await record.save();
+
+    try {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: "raw",
+            folder: "pads",
+            public_id: record._id.toString(),
+            overwrite: true,
+            format: "pdf",
+          },
+          (error, result) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+      });
+
+      record.pdfUrl = uploadResult.secure_url || uploadResult.url;
+      record.pdfPublicId = uploadResult.public_id;
+      await record.save();
+    } catch (uploadError) {
+      await record.deleteOne().catch(() => {});
+      throw uploadError;
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
 
-    // Send the PDF buffer directly
     return res.send(buffer);
   } catch (error) {
     console.error("Error generating PDF for download:", error.message);
@@ -461,14 +523,46 @@ const downloadPadStatementById = async (req, res) => {
       });
     }
 
-    // Regenerate the PDF using the stored data
-    const { buffer } = await generatePadPDFWithPuppeteer({
-      statement: padStatement.statement,
-      authorizers: padStatement.authorizers,
-      contactEmail: padStatement.contactEmail,
-      contactPhone: padStatement.contactPhone,
-      address: padStatement.address,
-    });
+    let buffer;
+    let contentLength;
+
+    if (padStatement.pdfUrl && padStatement.pdfPublicId) {
+      try {
+        const downloadResponse = await axios.get(padStatement.pdfUrl, {
+          responseType: "arraybuffer",
+        });
+        buffer = Buffer.from(downloadResponse.data);
+        const headerLength = downloadResponse.headers?.["content-length"];
+        contentLength = headerLength ? parseInt(headerLength, 10) : buffer.length;
+      } catch (downloadErr) {
+        if (!padStatement.statement) {
+          throw downloadErr;
+        }
+        const regenerated = await generatePadPDFWithPuppeteer({
+          statement: padStatement.statement || '',
+          authorizers: padStatement.authorizers,
+          contactEmail: padStatement.contactEmail,
+          contactPhone: padStatement.contactPhone,
+          address: padStatement.address,
+          serial: padStatement.serial,
+          dateStr: padStatement.dateStr,
+        });
+        buffer = regenerated.buffer;
+        contentLength = buffer.length;
+      }
+    } else {
+      const regenerated = await generatePadPDFWithPuppeteer({
+        statement: padStatement.statement || '',
+        authorizers: padStatement.authorizers,
+        contactEmail: padStatement.contactEmail,
+        contactPhone: padStatement.contactPhone,
+        address: padStatement.address,
+        serial: padStatement.serial,
+        dateStr: padStatement.dateStr,
+      });
+      buffer = regenerated.buffer;
+      contentLength = buffer.length;
+    }
 
     // Update download timestamp (add this field to existing records if needed)
     padStatement.downloadedAt = new Date();
@@ -476,8 +570,9 @@ const downloadPadStatementById = async (req, res) => {
 
     // Set headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${padStatement.serial}.pdf"`);
-    res.setHeader('Content-Length', buffer.length);
+    const downloadFileName = padStatement.serial ? `${padStatement.serial}.pdf` : `pad-${padStatement._id}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+    res.setHeader('Content-Length', contentLength || buffer.length);
 
     // Send the PDF buffer directly
     return res.send(buffer);

@@ -4,7 +4,7 @@ const padStatementSchema = new mongoose.Schema(
   {
     receiverEmail: { type: String, required: false },
     subject: { type: String, default: 'pcIST Statement' },
-    statement: { type: String, required: true },
+    statement: { type: String, default: null },
     // Array-based authorizers (can be empty)
     authorizers: [{
       name: { type: String, required: true },
@@ -19,6 +19,8 @@ const padStatementSchema = new mongoose.Schema(
     sent: { type: Boolean, default: false },
     sentAt: { type: Date },
     downloadedAt: { type: Date },
+    pdfUrl: { type: String },
+    pdfPublicId: { type: String },
   },
   {
     timestamps: true,

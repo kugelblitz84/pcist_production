@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import PadStatement from '../models/padStatementModel.js';
 import Invoice from '../models/invoiceModel.js';
+import { getPuppeteerInstance } from './puppeteerInstance.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,7 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
     address = 'Institute of Science & Technology (IST), Dhaka',
     serial: preGeneratedSerial = null,
     dateStr: preGeneratedDateStr = null,
+    uploadedPdfBuffer = null,
   } = opts;
   const istLogoPath = assetPath('assets/logos/IST_logo.png');
   const pcistLogoPath = assetPath('assets/logos/pcIST_logo.png');
@@ -72,12 +74,29 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
     serial = `pcIST-${today.getFullYear()}-${paddedNumber}`;
   }
 
-  const paragraphs = String(statement)
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p class="para">${p.replace(/\n/g, '<br/>')}</p>`)
-    .join('\n');
+  const hasUploadedPdf = Buffer.isBuffer(uploadedPdfBuffer) && uploadedPdfBuffer.length > 0;
+
+  const paragraphs = hasUploadedPdf
+    ? ''
+    : String(statement)
+        .split(/\n\n+/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map((p) => `<p class="para">${p.replace(/\n/g, '<br/>')}</p>`)
+        .join('\n');
+
+  const uploadedPdfBase64 = hasUploadedPdf
+    ? `data:application/pdf;base64,${uploadedPdfBuffer.toString('base64')}`
+    : null;
+
+  const contentBody = hasUploadedPdf
+    ? `<div class="embedded-pdf-wrapper">
+        <object class="embedded-pdf" data="${uploadedPdfBase64}#toolbar=0&navpanes=0&scrollbar=0" type="application/pdf">
+          <embed src="${uploadedPdfBase64}#toolbar=0&navpanes=0&scrollbar=0" type="application/pdf" />
+          <p>Your browser does not support embedded PDFs. Please download the attachment instead.</p>
+        </object>
+      </div>`
+    : paragraphs;
 
   const contactLine = [
     contactEmail ? `Email: ${contactEmail}` : null,
@@ -211,6 +230,9 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
   .meta{display:flex;justify-content:space-between;font-size:12px;color:#111827;margin:6px 0 8px;}
   .main .content{font-size:11.6px;line-height:1.48;text-align:justify;color:#111827;}
   .main .content .para{margin-bottom:8px;}
+  .embedded-pdf-wrapper{margin-top:12px;min-height:220mm;display:flex;flex-direction:column;gap:8px;}
+  .embedded-pdf{width:100%;flex:1 1 auto;min-height:240mm;border:none;}
+  .embedded-pdf-wrapper p{font-size:11px;color:#374151;text-align:center;}
 
   /* signature area: control layout for 1/2/3 signatures */
   .signatures{position:relative;display:flex;justify-content:flex-start;align-items:flex-end;gap:36px;margin-top:18mm;z-index:5}
@@ -320,7 +342,7 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
         <div>SN: <strong>${serial}</strong></div>
       </div>
       <section class="content" id="content">
-        ${paragraphs}
+        ${contentBody}
       </section>
   </main>
 
@@ -351,55 +373,57 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
 
   `;
 
-  let puppeteer;
+  // let puppeteer;
+  // try {
+  //   puppeteer = (await import('puppeteer')).default;
+  // } catch {
+  //   throw new Error('Puppeteer is not installed. Run `npm install puppeteer`.');
+  // }
+
+  // // Check if running on Heroku or other cloud environments
+  // const isHeroku = process.env.DYNO || process.env.NODE_ENV === 'production';
+  
+  // const launchArgs = [
+  //   '--no-sandbox',
+  //   '--disable-setuid-sandbox',
+  //   '--disable-dev-shm-usage', // Overcome limited resource problems
+  //   '--disable-gpu',
+  //   '--disable-features=VizDisplayCompositor',
+  //   '--run-all-compositor-stages-before-draw',
+  //   '--disable-background-timer-throttling',
+  //   '--disable-renderer-backgrounding',
+  //   '--disable-backgrounding-occluded-windows',
+  //   '--disable-ipc-flooding-protection',
+  //   '--font-render-hinting=none', // Consistent font rendering
+  //   '--force-color-profile=srgb', // Consistent color rendering
+  //   '--disable-font-subpixel-positioning', // More consistent text rendering
+  // ];
+  
+  // // Add Heroku-specific optimizations
+  // if (isHeroku) {
+  //   launchArgs.push(
+  //     '--memory-pressure-off',
+  //     '--max_old_space_size=4096',
+  //     '--single-process' // Sometimes helps with consistency on Heroku
+  //   );
+  // }
+  
+  // const execPath =
+  //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+  //   process.env.GOOGLE_CHROME_BIN ||
+  //   undefined;
+
+  // const browser = await puppeteer.launch({
+  //   headless: true,
+  //   args: launchArgs,
+  //   executablePath: execPath,
+  //   defaultViewport: null, // Use default viewport
+  //   ignoreDefaultArgs: ['--disable-extensions'], // Allow better rendering
+  // });
+
+
   try {
-    puppeteer = (await import('puppeteer')).default;
-  } catch {
-    throw new Error('Puppeteer is not installed. Run `npm install puppeteer`.');
-  }
-
-  // Check if running on Heroku or other cloud environments
-  const isHeroku = process.env.DYNO || process.env.NODE_ENV === 'production';
-  
-  const launchArgs = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage', // Overcome limited resource problems
-    '--disable-gpu',
-    '--disable-features=VizDisplayCompositor',
-    '--run-all-compositor-stages-before-draw',
-    '--disable-background-timer-throttling',
-    '--disable-renderer-backgrounding',
-    '--disable-backgrounding-occluded-windows',
-    '--disable-ipc-flooding-protection',
-    '--font-render-hinting=none', // Consistent font rendering
-    '--force-color-profile=srgb', // Consistent color rendering
-    '--disable-font-subpixel-positioning', // More consistent text rendering
-  ];
-  
-  // Add Heroku-specific optimizations
-  if (isHeroku) {
-    launchArgs.push(
-      '--memory-pressure-off',
-      '--max_old_space_size=4096',
-      '--single-process' // Sometimes helps with consistency on Heroku
-    );
-  }
-  
-  const execPath =
-    process.env.PUPPETEER_EXECUTABLE_PATH ||
-    process.env.GOOGLE_CHROME_BIN ||
-    undefined;
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: launchArgs,
-    executablePath: execPath,
-    defaultViewport: null, // Use default viewport
-    ignoreDefaultArgs: ['--disable-extensions'], // Allow better rendering
-  });
-
-  try {
+    const browser = await getPuppeteerInstance();
     const page = await browser.newPage();
     
     // Set viewport for consistent rendering across devices
@@ -492,10 +516,10 @@ const generatePadPDFWithPuppeteer = async (opts = {}) => {
       height: '297mm', // Explicit A4 height
     });
     await page.close();
-    await browser.close();
+    //await browser.close();
     return { buffer, serial, dateStr };
   } catch (err) {
-    await browser.close();
+    //await browser.close();
     throw err;
   }
 };

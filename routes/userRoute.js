@@ -15,7 +15,7 @@ import {
 //import { registerForEvent } from "../controllers/eventController.js";
 import auth from "../middlewares/auth.js";
 import adminAuth from "../middlewares/adminAuth.js";
-import { 
+import {
   sendPadStatementEmail, 
   downloadPadStatementPDF,
   downloadPadStatementById, 
@@ -25,6 +25,7 @@ import {
   downloadInvoiceById,
   listInvoiceHistory
 } from "../controllers/notificationController.js";
+import { uploadPadStatementPdf } from "../middlewares/multer.js";
 
 const userRouter = express.Router();
 
@@ -41,7 +42,18 @@ userRouter.post("/get-user-list", adminAuth, getUserList);
 userRouter.post("/update-membership-status/:id", adminAuth, updateMembershipStatus);
 // Pad statement endpoints
 userRouter.post("/pad/send", sendPadStatementEmail);
-userRouter.post("/pad/download", downloadPadStatementPDF);
+userRouter.post(
+  "/pad/download",
+  (req, res, next) => {
+    uploadPadStatementPdf(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next();
+    });
+  },
+  downloadPadStatementPDF
+);
 userRouter.get("/pad/download/:id", downloadPadStatementById);
 userRouter.get("/pad/history", listPadStatementHistory);
 

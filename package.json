@@ -5,10 +5,10 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-  "test": "echo \"Error: no test specified\" && exit 1",
-  "server": "nodemon server.js",
-  "pdf:test": "node utils/pdf_test_runner.js",
-  "invoice:test": "node utils/invoice_test_runner.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "nodemon server.js",
+    "pdf:test": "node utils/pdf_test_runner.js",
+    "invoice:test": "node utils/invoice_test_runner.js"
   },
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
   "homepage": "https://github.com/nasemul1/pcist-backend#readme",
   "dependencies": {
     "agenda": "^5.0.0",
-    "axios": "^1.10.0",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.6.1",
     "cors": "^2.8.5",

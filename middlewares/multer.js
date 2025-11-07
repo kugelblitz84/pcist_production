@@ -100,4 +100,18 @@ const uploadEventImages = multer({
   },
 }).array("images", 30);
 
-export {uploadEventImages, compressImages};
+const uploadPadStatementPdf = multer({
+  storage,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB limit for uploaded statements
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed for PAD statements"), false);
+    }
+  },
+}).single("statementPdf");
+
+export {uploadEventImages, compressImages, uploadPadStatementPdf};
