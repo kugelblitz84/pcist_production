@@ -32,6 +32,7 @@ eventRoutes.put("/update_event/:id", adminAuth, updateEvent);
 eventRoutes.post("/delete_event/:id", adminAuth, deleteEvent);
 eventRoutes.post(
   "/upload_images_to_gallery",
+  adminAuth,
   uploadEventImages,
   compressImages,
   uploadImagesToGallery

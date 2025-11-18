@@ -16,14 +16,14 @@ import {
 import auth from "../middlewares/auth.js";
 import adminAuth from "../middlewares/adminAuth.js";
 import {
-  sendPadStatementEmail, 
+  sendPadStatementEmail,
   downloadPadStatementPDF,
-  downloadPadStatementById, 
+  downloadPadStatementById,
   listPadStatementHistory,
   sendInvoiceEmail,
   downloadInvoicePDF,
   downloadInvoiceById,
-  listInvoiceHistory
+  listInvoiceHistory,
 } from "../controllers/notificationController.js";
 import { uploadPadStatementPdf } from "../middlewares/multer.js";
 
@@ -39,11 +39,16 @@ userRouter.post("/recover-password", recoverPassword);
 userRouter.put("/update-profile", auth, updateProfile);
 userRouter.post("/get-user-data", getUserData);
 userRouter.post("/get-user-list", adminAuth, getUserList);
-userRouter.post("/update-membership-status/:id", adminAuth, updateMembershipStatus);
+userRouter.post(
+  "/update-membership-status/:id",
+  adminAuth,
+  updateMembershipStatus
+);
 // Pad statement endpoints
-userRouter.post("/pad/send", sendPadStatementEmail);
+userRouter.post("/pad/send", adminAuth, sendPadStatementEmail);
 userRouter.post(
   "/pad/download",
+  adminAuth,
   (req, res, next) => {
     uploadPadStatementPdf(req, res, (err) => {
       if (err) {
@@ -54,14 +59,14 @@ userRouter.post(
   },
   downloadPadStatementPDF
 );
-userRouter.get("/pad/download/:id", downloadPadStatementById);
-userRouter.get("/pad/history", listPadStatementHistory);
+userRouter.get("/pad/download/:id", adminAuth, downloadPadStatementById);
+userRouter.get("/pad/history", adminAuth, listPadStatementHistory);
 
 // Invoice endpoints
-userRouter.post("/invoice/send", sendInvoiceEmail);
-userRouter.post("/invoice/download", downloadInvoicePDF);
-userRouter.get("/invoice/download/:id", downloadInvoiceById);
-userRouter.get("/invoice/history", listInvoiceHistory);
+userRouter.post("/invoice/send", adminAuth, sendInvoiceEmail);
+userRouter.post("/invoice/download", adminAuth, downloadInvoicePDF);
+userRouter.get("/invoice/download/:id", adminAuth, downloadInvoiceById);
+userRouter.get("/invoice/history", adminAuth, listInvoiceHistory);
 //userRouter.post("/get-user-data-admin", adminAuth, getUserData);
 //userRouter.post("/register-for-event/:id", auth, registerForEvent);
 
