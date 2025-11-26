@@ -1,6 +1,23 @@
 import jwt from 'jsonwebtoken';
 import userModel from '../models/userModel.js';
 
+const extractSlug = (req) => {
+  const sources = [
+    req.body?.slug,
+    req.query?.slug,
+    req.params?.slug,
+    req.headers['x-user-slug'],
+    req.headers['x-slug'],
+  ];
+
+  for (const raw of sources) {
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      return raw.trim();
+    }
+  }
+  return null;
+};
+
 const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -9,14 +26,15 @@ const auth = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const { slug } = req.body;
 
     if (!token) {
       return res.status(401).json({ message: "Not Authorized. Login again." });
     }
 
+    const slug = extractSlug(req);
+
     if (!slug) {
-      return res.status(400).json({ message: "Missing email or slug." });
+      return res.status(400).json({ message: "Missing slug." });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
