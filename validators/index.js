@@ -107,20 +107,29 @@ const otpSchema = z
   .trim()
   .regex(/^[0-9]{6}$/, "Code must be a 6-digit number");
 
-const intSchema = ({ label, min, max, optional } = {}) => {
-  let schema = z.preprocess(
-    toNumber,
-    z.number({ invalid_type_error: `${label ?? "Value"} must be a number` })
-  );
-  schema = schema.refine(Number.isInteger, {
-    message: `${label ?? "Value"} must be an integer`,
+const buildNumberShape = ({ label, min, max, isInt } = {}) => {
+  let shape = z.number({
+    invalid_type_error: `${label ?? "Value"} must be a number`,
   });
+
+  if (isInt) {
+    shape = shape.refine(Number.isInteger, {
+      message: `${label ?? "Value"} must be an integer`,
+    });
+  }
+
   if (typeof min === "number") {
-    schema = schema.min(min, `${label ?? "Value"} must be at least ${min}`);
+    shape = shape.min(min, `${label ?? "Value"} must be at least ${min}`);
   }
   if (typeof max === "number") {
-    schema = schema.max(max, `${label ?? "Value"} must be at most ${max}`);
+    shape = shape.max(max, `${label ?? "Value"} must be at most ${max}`);
   }
+
+  return shape;
+};
+
+const intSchema = ({ label, min, max, optional } = {}) => {
+  let schema = z.preprocess(toNumber, buildNumberShape({ label, min, max, isInt: true }));
   if (optional) {
     schema = schema.optional();
   }
@@ -128,16 +137,7 @@ const intSchema = ({ label, min, max, optional } = {}) => {
 };
 
 const numberSchema = ({ label, min, max, optional } = {}) => {
-  let schema = z.preprocess(
-    toNumber,
-    z.number({ invalid_type_error: `${label ?? "Value"} must be a number` })
-  );
-  if (typeof min === "number") {
-    schema = schema.min(min, `${label ?? "Value"} must be at least ${min}`);
-  }
-  if (typeof max === "number") {
-    schema = schema.max(max, `${label ?? "Value"} must be at most ${max}`);
-  }
+  let schema = z.preprocess(toNumber, buildNumberShape({ label, min, max }));
   if (optional) {
     schema = schema.optional();
   }
@@ -194,9 +194,13 @@ const dateTimeSchema = z
   .preprocess(emptyToUndefined, z.string().datetime({ offset: true }))
   .refine((value) => !!value, { message: "A valid ISO date string is required" });
 
-const teamMembersSchema = z
-  .preprocess(toArray, z.array(emailSchema).min(1, "At least one member is required"))
-  .max(10, "A maximum of 10 members is allowed");
+const teamMembersSchema = z.preprocess(
+  toArray,
+  z
+    .array(emailSchema)
+    .min(1, "At least one member is required")
+    .max(10, "A maximum of 10 members is allowed")
+);
 
 const memberDescriptorSchema = z
   .preprocess((value) => {

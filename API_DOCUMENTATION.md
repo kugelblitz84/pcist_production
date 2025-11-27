@@ -29,6 +29,7 @@ Unless otherwise mentioned:
 
 ### 1.1 Register member
 
+
 `POST /api/v1/user/register`
 
 **Body**
