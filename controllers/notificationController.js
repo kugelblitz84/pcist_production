@@ -86,7 +86,7 @@ const fetchPadBufferViaSignedUrl = async (publicId) => {
 
       return { buffer, contentLength };
     } catch (error) {
-      console.error(`Signed URL fetch failed for type ${type}:`, error.message);
+      // Ignore signed URL fetch failures and try the next type
     }
   }
 
@@ -263,10 +263,8 @@ const sendPadStatementEmail = async (req, res) => {
     record.sent = true;
     record.sentAt = new Date();
     await record.save();
-
     return res.status(200).json({ success: true, message: "Statement email sent", serial, date: dateStr, id: record._id });
   } catch (error) {
-    console.error("Error sending statement email:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 }
@@ -293,7 +291,7 @@ const downloadPadStatementPDF = async (req, res) => {
     }
     if (uploadedFile.mimetype !== "application/pdf") {
       return res.status(400).json({ success: false, message: "Only PDF files are accepted" });
-    }
+    } 
 
     // Parse optional fields (sent as multipart/form-data strings)
     const contactEmail = req.body.contactEmail || '';
@@ -388,7 +386,6 @@ const downloadPadStatementPDF = async (req, res) => {
 
     return res.send(buffer);
   } catch (error) {
-    console.error("Error generating PDF for download:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -493,7 +490,6 @@ const sendInvoiceEmail = async (req, res) => {
       total: grandTotal 
     });
   } catch (error) {
-    console.error("Error sending invoice email:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -572,10 +568,8 @@ const downloadInvoicePDF = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${serial}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
 
-    // Send the PDF buffer directly
     return res.send(buffer);
   } catch (error) {
-    console.error("Error generating invoice PDF for download:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -627,8 +621,6 @@ const downloadPadStatementById = async (req, res) => {
           padStatement.pdfUrl = urlToFetch;
         }
       } catch (downloadErr) {
-        console.error("Error fetching PAD PDF from Cloudinary:", downloadErr.message);
-
         const statusCode = downloadErr.response?.status;
         if ((statusCode === 401 || statusCode === 403) && padStatement.pdfPublicId) {
           const signedResult = await fetchPadBufferViaSignedUrl(padStatement.pdfPublicId);
@@ -641,7 +633,7 @@ const downloadPadStatementById = async (req, res) => {
               padStatement.pdfUrl = reupload.secure_url || reupload.url;
               padStatement.pdfPublicId = reupload.public_id;
             } catch (reuploadErr) {
-              console.error("Error re-uploading PAD PDF after signed fetch:", reuploadErr.message);
+              // Swallow re-upload errors to continue serving the PDF
             }
           }
         }
@@ -674,7 +666,7 @@ const downloadPadStatementById = async (req, res) => {
         padStatement.pdfUrl = reupload.secure_url || reupload.url;
         padStatement.pdfPublicId = reupload.public_id;
       } catch (reuploadErr) {
-        console.error("Error updating PAD PDF in Cloudinary:", reuploadErr.message);
+        // Ignore Cloudinary re-upload errors when serving regenerated PDF
       }
     }
 
@@ -688,7 +680,6 @@ const downloadPadStatementById = async (req, res) => {
 
     return res.send(buffer);
   } catch (error) {
-    console.error("Error downloading PAD statement:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -734,10 +725,8 @@ const downloadInvoiceById = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${invoice.serial}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
 
-    // Send the PDF buffer directly
     return res.send(buffer);
   } catch (error) {
-    console.error("Error downloading invoice:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

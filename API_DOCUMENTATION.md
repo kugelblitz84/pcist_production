@@ -233,10 +233,10 @@ Content-Type: application/json
 }
 ```
 
-**Response (200)** – user document (password & sensitive fields stripped):
+**Response (200)** – user document directly (password, slug & sensitive fields stripped):
 
 ```ts
-interface UserData {
+{
   _id: string;
   classroll: number;
   email: string;
@@ -281,7 +281,7 @@ interface UserData {
   data: Array<{
     _id: string;
     name?: string;
-    role: 1 | 2;
+    role: 1 | 2 | 3;
     slug: string;
     email: string;
     membership: boolean;
@@ -307,6 +307,15 @@ interface UserData {
   slug: string;            // admin slug, required by adminAuth
   membership: boolean;     // true to enable, false to disable
   durationInMonths?: 1|2|3 // required when membership === true
+}
+```
+
+**Response (200)**
+
+```ts
+{
+  message: "Membership updated successfully.";
+  user: UserDocument; // full user object with updated membership fields
 }
 ```
 
@@ -423,6 +432,15 @@ interface TeamEvent {
 }
 ```
 
+**Response (200)**
+
+```ts
+{
+  message: "Event updated successfully";
+  data: SoloEvent | TeamEvent; // the updated event document
+}
+```
+
 ### 2.5 Delete event (admin)
 
 `POST /api/v1/event/delete_event/:id`
@@ -434,6 +452,15 @@ interface TeamEvent {
 ```ts
 {
   slug: string; // admin slug
+}
+```
+
+**Response (200)**
+
+```ts
+{
+  message: "Event deleted successfully";
+  data: SoloEvent | TeamEvent; // the deleted event document
 }
 ```
 
@@ -554,6 +581,18 @@ Used to mark one or more participants as paid/unpaid and sync `user.myParticipat
     { userId?: string; classroll?: number; status?: boolean }
   >;
   paymentStatus?: boolean; // optional global status override
+}
+```
+
+**Response (200)**
+
+```ts
+{
+  success: true;
+  message: "Payment status updated";
+  eventType: "solo" | "team";
+  eventId: string;
+  updatedCount: number;
 }
 ```
 
@@ -881,16 +920,19 @@ Content-Type: application/json
 }
 ```
 
-**Response** – newest first:
+**Response (200)** – array of messages, newest first:
 
 ```ts
-Array<{
-  _id: string;
-  senderId: string;   // user ObjectId
-  text: string;
-  senderName: string;
-  sentAt: string;     // ISO
-}>
+[
+  {
+    _id: string;
+    senderId: string;   // user ObjectId
+    text: string;
+    senderName: string;
+    sentAt: string;     // ISO or timestamp
+  },
+  // ...
+]
 ```
 
 ### 6.2 Realtime: Socket.IO chat
