@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
 	role: { type: Number, required: true, default: 1 },
 	title: { 
 		type: String, 
-		enum: ['GS', 'JS', 'OS', 'Member'], 
+		enum: ['GS', 'JS', 'OS', 'Member', 'Developer'], 
 		default: 'Member' 
 	},
 	treasurer: { type: Boolean, default: false },
